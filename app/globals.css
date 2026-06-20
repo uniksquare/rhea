@@ -1,79 +1,103 @@
 @import "tailwindcss";
 @source "../node_modules/streamdown/dist/*.js";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+@theme {
+  /* Colors */
+  --color-iris-violet: #7451f2;
+  --color-deep-iris: #5952a1;
+  --color-cobalt-info: #0072c6;
+  --color-powder-blue: #d6e5ff;
+  --color-graphite-ink: #272727;
+  --color-slate: #5d5d5d;
+  --color-ash: #4f4f4f;
+  --color-mauve-dust: #a69ea7;
+  --color-fog: #858585;
+  --color-charcoal-hairline: #333333;
+  --color-mist: #e0e0e0;
+  --color-soft-snow: #f6f6f6;
+  --color-paper-white: #ffffff;
+  --color-pure-black: #000000;
+
+  /* Typography */
+  --font-lustria: var(--font-lustria), 'Lustria', serif;
+  --font-sans: var(--font-dm-sans), 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-martian-mono), 'Martian Mono', ui-monospace, monospace;
+
+  /* Typography — Scale */
+  --text-mono-sm: 11px;
+  --leading-mono-sm: 1.2;
+  --tracking-mono-sm: 0.22px;
+  --text-caption: 14px;
+  --leading-caption: 1.4;
+  --text-body: 16px;
+  --leading-body: 1.6;
+  --tracking-body: 0.32px;
+  --text-subheading: 20px;
+  --leading-subheading: 1.2;
+  --text-heading-sm: 32px;
+  --leading-heading-sm: 1.2;
+  --text-heading: 36px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.68px;
+  --text-heading-lg: 42px;
+  --leading-heading-lg: 1.1;
+  --tracking-heading-lg: -2.02px;
+  --text-display: 52px;
+  --leading-display: 1.1;
+  --tracking-display: -2.6px;
+
+  /* Spacing */
+  --spacing-8: 8px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-104: 104px;
+
+  /* Border Radius */
+  --radius-md: 4px;
+  --radius-full: 100px;
+
+  /* Shadows */
+  --shadow-sm: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px;
 }
 
 :root {
   color-scheme: light;
-  /* Soft neutral page with white elevated surfaces so cards/composer pop. */
-  --background: oklch(0.971 0 0);
-  --foreground: oklch(0.16 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0 0);
-  --primary: oklch(0.19 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.94 0 0);
-  --secondary-foreground: oklch(0.19 0 0);
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.19 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.916 0 0);
-  --input: oklch(0.916 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
+  
+  /* Map standard tailwind system tokens to Obviously system tokens */
+  --background: var(--color-paper-white);
+  --foreground: var(--color-graphite-ink);
+  
+  --card: var(--color-paper-white);
+  --card-foreground: var(--color-graphite-ink);
+  
+  --popover: var(--color-paper-white);
+  --popover-foreground: var(--color-graphite-ink);
+  
+  --primary: var(--color-iris-violet);
+  --primary-foreground: var(--color-paper-white);
+  
+  --secondary: var(--color-paper-white);
+  --secondary-foreground: var(--color-graphite-ink);
+  
+  --muted: var(--color-soft-snow);
+  --muted-foreground: var(--color-slate);
+  
+  --accent: var(--color-soft-snow);
+  --accent-foreground: var(--color-graphite-ink);
+  
+  --destructive: #d32f2f;
+  --destructive-foreground: var(--color-paper-white);
+  
+  --border: var(--color-mist);
+  --input: var(--color-mist);
+  --ring: var(--color-iris-violet);
+  
+  --radius: 4px;
 }
 
 * {
@@ -88,6 +112,7 @@ body {
   min-height: 100%;
   margin: 0;
   background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
 }
 
@@ -95,4 +120,28 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+/* Dotted grid background pattern utilities */
+.dotted-grid-bg {
+  background-color: var(--color-paper-white);
+  background-image: radial-gradient(var(--color-mist) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dotted-grid-bg-snow {
+  background-color: var(--color-soft-snow);
+  background-image: radial-gradient(var(--color-mist) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.diagonal-stripes-bg {
+  background-color: var(--color-soft-snow);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-mist),
+    var(--color-mist) 1px,
+    transparent 1px,
+    transparent 12px
+  );
 }
