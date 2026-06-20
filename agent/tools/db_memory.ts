@@ -14,19 +14,32 @@ export default defineTool({
       category: z.string().describe("Cause category to retrieve remediation templates for (e.g. DATABASE, DEPLOYMENT)"),
     }),
   ]),
-  async execute(input) {
+  async execute(input, ctx) {
     try {
+      // Extract org_id from the authenticated session
+      const rawOrgId = ctx.session.auth.current?.attributes?.orgId;
+      let orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
+      if (!orgId) {
+        // Fallback to default org for non-browser callers
+        const orgRes = await queryDsql("SELECT org_id FROM organizations LIMIT 1;");
+        orgId = orgRes.rows[0]?.org_id;
+        if (!orgId) {
+          throw new Error("No organization found. Make sure database is initialized.");
+        }
+      }
+
       switch (input.action) {
         case "get_similar_incidents": {
           let query = `
             SELECT i.incident_id, i.title, i.description, i.severity, i.status, i.created_at, inv.findings
             FROM incidents i
             LEFT JOIN investigations inv ON i.incident_id = inv.incident_id
+            WHERE i.org_id = $1
           `;
-          const params: any[] = [];
+          const params: any[] = [orgId];
           
           if (input.keyword) {
-            query += " WHERE i.title ILIKE $1 OR i.description ILIKE $1 OR inv.findings ILIKE $1";
+            query += " AND (i.title ILIKE $2 OR i.description ILIKE $2 OR inv.findings ILIKE $2)";
             params.push(`%${input.keyword}%`);
           }
           
@@ -44,9 +57,9 @@ export default defineTool({
           const res = await queryDsql(
             `SELECT pattern_id, cause_category, remediation_template, success_rate, created_at
              FROM fix_patterns
-             WHERE cause_category = $1
+             WHERE org_id = $1 AND cause_category = $2
              ORDER BY success_rate DESC, created_at DESC LIMIT 5;`,
-            [input.category]
+            [orgId, input.category]
           );
           
           return {

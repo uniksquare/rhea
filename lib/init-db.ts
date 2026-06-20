@@ -50,14 +50,48 @@ async function run() {
   console.log("✓ Connected to Aurora DSQL cluster successfully!");
 
   const queries = [
+    // ── Core tables ──
     `CREATE TABLE IF NOT EXISTS organizations (
         org_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+
+    // ── Auth & multi-tenancy tables ──
+    `CREATE TABLE IF NOT EXISTS users (
+        user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255),
+        role VARCHAR(50) DEFAULT 'VIEWER',
+        avatar_url TEXT,
+        provider VARCHAR(50),
+        provider_account_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS api_keys (
+        key_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        created_by UUID REFERENCES users(user_id),
+        key_hash VARCHAR(64) NOT NULL,
+        key_prefix VARCHAR(8) NOT NULL,
+        label VARCHAR(255),
+        scopes TEXT[],
+        expires_at TIMESTAMP,
+        revoked_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS org_settings (
+        org_id UUID PRIMARY KEY REFERENCES organizations(org_id) ON DELETE CASCADE,
+        settings JSONB DEFAULT '{}',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+
+    // ── Incident & investigation tables (tenant-scoped) ──
     `CREATE TABLE IF NOT EXISTS incidents (
         incident_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID,
+        org_id UUID NOT NULL REFERENCES organizations(org_id) ON DELETE CASCADE,
         title VARCHAR(255) NOT NULL,
         description TEXT,
         severity VARCHAR(50),
@@ -67,14 +101,16 @@ async function run() {
     );`,
     `CREATE TABLE IF NOT EXISTS investigations (
         investigation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        incident_id UUID,
+        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        incident_id UUID REFERENCES incidents(incident_id) ON DELETE CASCADE,
         ranked_causes JSONB,
         findings TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS root_causes (
         cause_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        investigation_id UUID,
+        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        investigation_id UUID REFERENCES investigations(investigation_id) ON DELETE CASCADE,
         category VARCHAR(100),
         description TEXT,
         confidence FLOAT,
@@ -82,11 +118,14 @@ async function run() {
     );`,
     `CREATE TABLE IF NOT EXISTS fix_patterns (
         pattern_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
         cause_category VARCHAR(100),
         remediation_template TEXT,
         success_rate FLOAT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+
+    // ── Seed default org ──
     `INSERT INTO organizations (name)
     SELECT 'Rhea Default Org'
     WHERE NOT EXISTS (SELECT 1 FROM organizations LIMIT 1);`

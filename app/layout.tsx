@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
 const sans = Geist({
@@ -20,15 +21,18 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "rhea",
-  description: "A Next.js starter for eve agents with AI Elements.",
+  title: "Rhea — Autonomous Incident Response",
+  description:
+    "Rhea is an autonomous DevOps agent that investigates production incidents, diagnoses root causes, and executes remediations in secure sandboxes.",
 };
 
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
   return (
     <html className={cn(sans.variable, mono.variable)} lang="en">
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+        <SessionProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </SessionProvider>
       </body>
     </html>
   );

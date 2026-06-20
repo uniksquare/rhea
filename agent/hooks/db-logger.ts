@@ -6,11 +6,14 @@ export default defineHook({
     async "*"(event, ctx) {
       try {
         const at = event.meta?.at || new Date().toISOString();
+        // Extract org_id from authenticated session for tenant scoping
+        const orgId = ctx.session.auth.current?.attributes?.orgId || "default";
         
         switch (event.type) {
           case "session.started":
             await putItem("Sessions", {
               session_id: ctx.session.id,
+              org_id: orgId,
               created_at: at,
               status: "ACTIVE",
               metadata: event.data || {}
