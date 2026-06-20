@@ -60,7 +60,7 @@ async function run() {
     // ── Auth & multi-tenancy tables ──
     `CREATE TABLE IF NOT EXISTS users (
         user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        org_id UUID NOT NULL, -- Managed at application layer
         email VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(255),
         role VARCHAR(50) DEFAULT 'VIEWER',
@@ -72,18 +72,18 @@ async function run() {
     );`,
     `CREATE TABLE IF NOT EXISTS api_keys (
         key_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
-        created_by UUID REFERENCES users(user_id),
+        org_id UUID NOT NULL,
+        created_by UUID,
         key_hash VARCHAR(64) NOT NULL,
         key_prefix VARCHAR(8) NOT NULL,
         label VARCHAR(255),
-        scopes TEXT[],
+        scopes JSONB,
         expires_at TIMESTAMP,
         revoked_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS org_settings (
-        org_id UUID PRIMARY KEY REFERENCES organizations(org_id) ON DELETE CASCADE,
+        org_id UUID PRIMARY KEY,
         settings JSONB DEFAULT '{}',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
@@ -91,26 +91,27 @@ async function run() {
     // ── Incident & investigation tables (tenant-scoped) ──
     `CREATE TABLE IF NOT EXISTS incidents (
         incident_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID NOT NULL REFERENCES organizations(org_id) ON DELETE CASCADE,
+        org_id UUID NOT NULL,
         title VARCHAR(255) NOT NULL,
         description TEXT,
         severity VARCHAR(50),
         status VARCHAR(50) DEFAULT 'ACTIVE',
+        agent_session_state JSONB, -- Stores Eve agent session state
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         resolved_at TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS investigations (
         investigation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
-        incident_id UUID REFERENCES incidents(incident_id) ON DELETE CASCADE,
+        org_id UUID NOT NULL,
+        incident_id UUID NOT NULL,
         ranked_causes JSONB,
         findings TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS root_causes (
         cause_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
-        investigation_id UUID REFERENCES investigations(investigation_id) ON DELETE CASCADE,
+        org_id UUID NOT NULL,
+        investigation_id UUID NOT NULL,
         category VARCHAR(100),
         description TEXT,
         confidence FLOAT,
@@ -118,12 +119,19 @@ async function run() {
     );`,
     `CREATE TABLE IF NOT EXISTS fix_patterns (
         pattern_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        org_id UUID REFERENCES organizations(org_id) ON DELETE CASCADE,
+        org_id UUID NOT NULL,
         cause_category VARCHAR(100),
         remediation_template TEXT,
         success_rate FLOAT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+
+    // ── Alters for pre-existing tables to ensure columns exist ──
+    `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS org_id UUID;`,
+    `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS agent_session_state JSONB;`,
+    `ALTER TABLE investigations ADD COLUMN IF NOT EXISTS org_id UUID;`,
+    `ALTER TABLE root_causes ADD COLUMN IF NOT EXISTS org_id UUID;`,
+    `ALTER TABLE fix_patterns ADD COLUMN IF NOT EXISTS org_id UUID;`,
 
     // ── Seed default org ──
     `INSERT INTO organizations (name)

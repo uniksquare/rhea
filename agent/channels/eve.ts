@@ -1,6 +1,6 @@
 import { eveChannel } from "eve/channels/eve";
 import { localDev, vercelOidc, type AuthFn } from "eve/channels/auth";
-import { auth } from "../../lib/auth";
+import { getToken } from "@auth/core/jwt";
 
 /**
  * Custom AuthFn that bridges Auth.js sessions into Eve's route auth.
@@ -8,27 +8,44 @@ import { auth } from "../../lib/auth";
  * to an Eve SessionAuthContext with orgId and role as attributes.
  */
 function appSession(): AuthFn<Request> {
-  return async () => {
+  return async (request) => {
     try {
-      const session = await auth();
-      if (!session?.user?.id) return null;
+      const cookieHeader = request.headers.get("cookie") || "";
+      const isSecure = cookieHeader.includes("__Secure-authjs.session-token") || cookieHeader.includes("__Secure-next-auth.session-token");
+      const isNextAuth = cookieHeader.includes("next-auth.session-token") || cookieHeader.includes("__Secure-next-auth.session-token");
+
+      const cookieName = isSecure
+        ? (isNextAuth ? "__Secure-next-auth.session-token" : "__Secure-authjs.session-token")
+        : (isNextAuth ? "next-auth.session-token" : "authjs.session-token");
+
+      const token = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET,
+        secureCookie: isSecure,
+        cookieName,
+      });
+
+      if (!token) return null;
+
+      const principalId = (token.userId || token.sub) as string;
+      if (!principalId) return null;
 
       // Eve attributes must be Record<string, string | readonly string[]>
-      // Filter out null/undefined values
       const attributes: Record<string, string | readonly string[]> = {};
-      if (session.user.orgId) attributes.orgId = session.user.orgId;
-      if (session.user.role) attributes.role = session.user.role;
-      if (session.user.email) attributes.email = session.user.email;
-      if (session.user.name) attributes.name = session.user.name;
-      if (session.user.image) attributes.image = session.user.image;
+      if (token.orgId) attributes.orgId = token.orgId as string;
+      if (token.role) attributes.role = token.role as string;
+      if (token.email) attributes.email = token.email as string;
+      if (token.name) attributes.name = token.name as string;
+      if (token.picture) attributes.image = token.picture as string;
 
       return {
         authenticator: "authjs",
-        principalId: session.user.id,
+        principalId,
         principalType: "user",
         attributes,
       };
-    } catch {
+    } catch (err) {
+      console.error("[appSession] Auth verification failed:", err);
       return null;
     }
   };
@@ -41,3 +58,4 @@ export default eveChannel({
     vercelOidc(),
   ],
 });
+
