@@ -33,7 +33,7 @@ const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPo
 // Integration Connection domains for logo.dev lookup
 const CONNECTION_DOMAINS: Record<string, string> = {
   // Planner
-  "Jira": "atlassian.com",
+  "Jira": "jira.com",
   "Slack": "slack.com",
   "MS Teams": "microsoft.com",
   "PagerDuty": "pagerduty.com",
@@ -54,7 +54,7 @@ const CONNECTION_DOMAINS: Record<string, string> = {
   "Rancher": "rancher.com",
 
   // Remediation
-  "Terraform": "hashicorp.com",
+  "Terraform": "terraform.io",
   "Ansible": "ansible.com",
   "AWS EC2": "aws.amazon.com",
   "GitHub Actions": "github.com",
@@ -63,7 +63,7 @@ const CONNECTION_DOMAINS: Record<string, string> = {
   // Approver
   "Okta": "okta.com",
   "AWS IAM": "aws.amazon.com",
-  "HashiCorp Vault": "hashicorp.com",
+  "Google Cloud": "cloud.google.com",
 };
 
 // Partner Logo Component using logo.dev along with its wordmark (true colors, uniform size)
@@ -81,6 +81,50 @@ function CompanyLogo({ domain, name }: { domain: string; name: string }) {
         />
       </div>
       <span className="font-sans font-bold text-[16px] tracking-tight text-graphite-ink select-none leading-none shrink-0">
+        {name}
+      </span>
+    </div>
+  );
+}
+
+// Helper Component for the Redesigned Integrations Grid
+function IntegrationGridCell({
+  name,
+  domain,
+  isEmpty = false,
+  isSpecial = false,
+  specialText = ""
+}: {
+  name?: string;
+  domain?: string;
+  isEmpty?: boolean;
+  isSpecial?: boolean;
+  specialText?: string;
+}) {
+  if (isEmpty) {
+    return <div className="hidden lg:block diagonal-stripes-bg h-[96px] w-full border-r border-b border-mist" />;
+  }
+
+  if (isSpecial) {
+    return (
+      <div className="flex items-center justify-center p-16 bg-paper-white h-[96px] w-full border-r border-b border-mist">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-fog font-semibold">
+          {specialText}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-8 p-16 bg-paper-white h-[96px] w-full border-r border-b border-mist transition-colors hover:bg-soft-snow/40 duration-200 select-none">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`https://img.logo.dev/${domain}?token=${LOGO_DEV_PUBLIC_KEY}&size=96`}
+        alt={`${name} logo`}
+        style={{ width: 32, height: 32 }}
+        className="object-contain shrink-0"
+      />
+      <span className="font-sans font-bold text-[15px] tracking-tight text-graphite-ink leading-none">
         {name}
       </span>
     </div>
@@ -287,7 +331,7 @@ export function LandingClient() {
       active: true,
       headline: "Enforce ironclad safety gates",
       description: "Approver acts as a zero-trust security gate. It reviews proposed mutations, analyzes execution risks, and intercepts workflows for human-in-the-loop authorization.",
-      connectsWith: ["Okta", "AWS IAM", "Slack", "HashiCorp Vault"],
+      connectsWith: ["Okta", "AWS IAM", "Slack", "Google Cloud"],
       mascot: (
         <Image
           src="/approval.jpeg"
@@ -412,13 +456,16 @@ export function LandingClient() {
               </div>
             </section>
 
+            {/* Section Separator */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
+
             {/* Trust Logo Strip Bounded by Left/Right Borders */}
             <section className="bg-paper-white py-24 md:py-40 text-center space-y-16 md:space-y-24 border-b border-mist">
               <span className="font-mono text-[11px] uppercase tracking-[0.22px] text-fog block">
                 TRUSTED BY ENTERPRISE DEVOPS TEAMS
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 w-full gap-32 md:gap-48 px-16 md:px-24 justify-items-center items-center">
-                <CompanyLogo domain="vercel.com" name="Vercel" />
+                <CompanyLogo domain="aws.amazon.com" name="AWS" />
                 <CompanyLogo domain="notion.so" name="Notion" />
                 <CompanyLogo domain="slack.com" name="Slack" />
                 <CompanyLogo domain="github.com" name="GitHub" />
@@ -427,8 +474,11 @@ export function LandingClient() {
               </div>
             </section>
 
+            {/* Section Separator */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
+
             {/* Persona Tabs Section */}
-            <section id="features" className="w-full pt-40 md:pt-80 pb-24 md:pb-32 scroll-mt-40">
+            <section id="features" className="w-full pt-40 md:pt-80 pb-24 md:pb-32 scroll-mt-40 border-b border-mist">
               <div className="text-center space-y-4 max-w-2xl mx-auto px-16 sm:px-24 mb-32 md:mb-48">
                 <span className="font-mono text-[11px] uppercase tracking-wider text-slate">
                   YOUR NEXT HIRE
@@ -543,6 +593,9 @@ export function LandingClient() {
               </div>
             </section>
 
+            {/* Section Separator */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
+
             {/* How It Works Section */}
             <section id="how-it-works" className="w-full pt-24 md:pt-32 pb-0 scroll-mt-40 border-b border-mist bg-paper-white z-10">
               <div className="text-center space-y-4 max-w-2xl mx-auto px-16 sm:px-24 mb-16 md:mb-24">
@@ -570,8 +623,8 @@ export function LandingClient() {
                       setActiveStep(1);
                     }}
                     className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 1
-                        ? "bg-soft-snow/40"
-                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      ? "bg-soft-snow/40"
+                      : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
                       }`}
                   >
                     {/* Vertical Left Progress Bar */}
@@ -590,8 +643,8 @@ export function LandingClient() {
                     <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 1 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Ask Rhea</h3>
 
                     <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 1
-                        ? "grid-rows-[1fr] opacity-100 mt-12"
-                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      ? "grid-rows-[1fr] opacity-100 mt-12"
+                      : "grid-rows-[0fr] opacity-0 overflow-hidden"
                       }`}>
                       <div className="overflow-hidden">
                         <p className="text-slate text-[14px] leading-relaxed">
@@ -608,8 +661,8 @@ export function LandingClient() {
                       setActiveStep(2);
                     }}
                     className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 2
-                        ? "bg-soft-snow/40"
-                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      ? "bg-soft-snow/40"
+                      : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
                       }`}
                   >
                     {/* Vertical Left Progress Bar */}
@@ -628,8 +681,8 @@ export function LandingClient() {
                     <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 2 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Connect tools</h3>
 
                     <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 2
-                        ? "grid-rows-[1fr] opacity-100 mt-12"
-                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      ? "grid-rows-[1fr] opacity-100 mt-12"
+                      : "grid-rows-[0fr] opacity-0 overflow-hidden"
                       }`}>
                       <div className="overflow-hidden">
                         <p className="text-slate text-[14px] leading-relaxed">
@@ -646,8 +699,8 @@ export function LandingClient() {
                       setActiveStep(3);
                     }}
                     className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 3
-                        ? "bg-soft-snow/40"
-                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      ? "bg-soft-snow/40"
+                      : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
                       }`}
                   >
                     {/* Vertical Left Progress Bar */}
@@ -666,8 +719,8 @@ export function LandingClient() {
                     <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 3 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Sit back and relax</h3>
 
                     <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 3
-                        ? "grid-rows-[1fr] opacity-100 mt-12"
-                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      ? "grid-rows-[1fr] opacity-100 mt-12"
+                      : "grid-rows-[0fr] opacity-0 overflow-hidden"
                       }`}>
                       <div className="overflow-hidden">
                         <p className="text-slate text-[14px] leading-relaxed">
@@ -719,100 +772,115 @@ export function LandingClient() {
               </div>
             </section>
 
-            {/* Integrations Bento Grid Section */}
-            <section id="integrations" className="bg-soft-snow py-40 md:py-80 w-full scroll-mt-40">
-              <div className="px-16 md:px-24 space-y-12">
+            {/* Integrations Section */}
+            <section id="integrations" className="w-full scroll-mt-40 bg-paper-white border-b border-mist z-10">
 
-                <div className="text-center space-y-3 max-w-xl mx-auto">
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-slate">
-                    INTEGRATIONS
-                  </span>
-                  <h2 className="font-lustria text-3xl sm:text-4xl text-graphite-ink tracking-tight leading-tight">
-                    Plugs natively into your production stack
-                  </h2>
-                  <p className="text-slate text-[14px]">
-                    No SDKs or code modifications required. Rhea hooks into standard monitoring endpoints and cloud providers.
-                  </p>
+              {/* Slanted Line Separator on Top */}
+              <div className="w-full h-16 border-b border-mist diagonal-stripes-bg" />
+
+              {/* Desktop Constellation Grid view (6 columns) */}
+              <div className="hidden lg:grid grid-cols-6 w-full bg-paper-white overflow-hidden">
+
+                {/* Row 1 */}
+                <IntegrationGridCell name="Jira" domain="jira.com" />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="Notion" domain="notion.so" />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="Datadog" domain="datadoghq.com" />
+
+                {/* Row 2 */}
+                <IntegrationGridCell name="Sentry" domain="sentry.io" />
+                <IntegrationGridCell name="Splunk" domain="splunk.com" />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="Prometheus" domain="prometheus.io" />
+                <IntegrationGridCell name="Helm" domain="helm.sh" />
+                <IntegrationGridCell isEmpty />
+
+                {/* Row 3 */}
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="AWS" domain="aws.amazon.com" />
+
+                {/* Center "Connect Anything" Card (spans Col 3 & 4 of Row 3 and 4) */}
+                <div className="col-span-2 row-span-2 flex flex-col items-center justify-center p-24 text-center bg-paper-white h-[192px] w-full z-20 relative border-r border-b border-mist">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-slate mb-8 block select-none">INTEGRATIONS</span>
+                  <h3 className="font-lustria text-3xl text-graphite-ink mb-16 leading-tight select-none">Connect Anything</h3>
+                  <button className="border border-slate hover:bg-soft-snow text-graphite-ink font-semibold font-mono text-[9px] tracking-wider px-12 py-6 rounded uppercase transition-colors">
+                    EXPLORE INTEGRATIONS
+                  </button>
                 </div>
 
-                {/* Bento Grid */}
-                <div className="relative border border-mist rounded p-16 sm:p-24 md:p-32 bg-paper-white shadow-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+                <IntegrationGridCell name="Rancher" domain="rancher.com" />
+                <IntegrationGridCell name="Slack" domain="slack.com" />
 
-                    {/* Cell 1 */}
-                    <div className="p-6 bg-paper-white border border-mist rounded flex flex-col justify-between space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-fog">OBSERVABILITY</span>
-                        <Eye className="size-4 text-iris-violet" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-sans font-semibold text-graphite-ink text-[16px]">Datadog & CloudWatch</h4>
-                        <p className="text-slate text-[13px] leading-relaxed">
-                          Retrieve APM traces, active logs, error metrics, and trigger alerts in seconds.
-                        </p>
-                      </div>
-                    </div>
+                {/* Row 4 */}
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell isEmpty />
+                {/* Center Card spans Col 3 and Col 4 here */}
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="PagerDuty" domain="pagerduty.com" />
 
-                    {/* Cell 2 */}
-                    <div className="p-6 bg-paper-white border border-mist rounded flex flex-col justify-between space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-fog">COMPUTE</span>
-                        <Terminal className="size-4 text-iris-violet" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-sans font-semibold text-graphite-ink text-[16px]">AWS EKS, GCP GKE</h4>
-                        <p className="text-slate text-[13px] leading-relaxed">
-                          Audit containers, inspect pod configurations, fetch node CPU and scale.
-                        </p>
-                      </div>
-                    </div>
+                {/* Row 5 */}
+                <IntegrationGridCell name="Okta" domain="okta.com" />
+                <IntegrationGridCell name="Google Cloud" domain="cloud.google.com" />
+                <IntegrationGridCell name="Terraform" domain="terraform.io" />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="Ansible" domain="ansible.com" />
+                <IntegrationGridCell isEmpty />
 
-                    {/* Cell 3 */}
-                    <div className="p-6 bg-paper-white border border-mist rounded flex flex-col justify-between space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-fog">INFRASTRUCTURE</span>
-                        <Code className="size-4 text-iris-violet" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-sans font-semibold text-graphite-ink text-[16px]">Terraform & Git</h4>
-                        <p className="text-slate text-[13px] leading-relaxed">
-                          Execute configurations and auto-draft Github PR remediations safely.
-                        </p>
-                      </div>
-                    </div>
+                {/* Row 6 */}
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell name="Docker" domain="docker.com" />
+                <IntegrationGridCell name="GitHub" domain="github.com" />
+                <IntegrationGridCell isEmpty />
+                <IntegrationGridCell isSpecial specialText="AND 20+ MORE" />
 
-                    {/* Cell 4 (Center - Span/Asymmetric styling) */}
-                    <div className="p-8 bg-soft-snow border border-mist rounded flex flex-col justify-center items-center text-center space-y-4 lg:col-span-2 lg:row-span-1">
-                      <h3 className="font-lustria text-2xl sm:text-3xl text-graphite-ink tracking-tight max-w-md">
-                        Connect anything. Deploy securely in minutes.
-                      </h3>
-                      <p className="text-slate text-[14px] max-w-sm">
-                        Configure webhooks, AWS IAM cross-account roles, or local agent proxies in minutes.
-                      </p>
-                      <button className="border border-slate hover:bg-paper-white text-graphite-ink font-semibold text-[12px] tracking-wide px-5 py-2.5 rounded transition-all">
-                        EXPLORE ALL INTEGRATIONS
-                      </button>
-                    </div>
+              </div>
 
-                    {/* Cell 5 */}
-                    <div className="p-6 bg-paper-white border border-mist rounded flex flex-col justify-between space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-fog">NOTIFICATIONS</span>
-                        <Share2 className="size-4 text-iris-violet" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="font-sans font-semibold text-graphite-ink text-[16px]">Slack & MS Teams</h4>
-                        <p className="text-slate text-[13px] leading-relaxed">
-                          Stream reasoning steps, query progress, and approve hotfixes inside chat.
-                        </p>
-                      </div>
-                    </div>
+              {/* Mobile fallback Grid view */}
+              <div className="block lg:hidden w-full bg-paper-white">
 
-                  </div>
+                {/* Header block for mobile */}
+                <div className="p-24 sm:p-32 text-center bg-paper-white border-b border-mist flex flex-col items-center">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-slate mb-8 block">INTEGRATIONS</span>
+                  <h3 className="font-lustria text-2xl sm:text-3xl text-graphite-ink mb-12">Connect Anything</h3>
+                  <p className="text-slate text-[13px] max-w-sm mx-auto mb-16 leading-relaxed">
+                    Rhea plugs securely into your cloud infrastructure, databases, notifications, observablity, and compliance systems.
+                  </p>
+                  <button className="border border-slate hover:bg-soft-snow text-graphite-ink font-semibold font-mono text-[9px] tracking-wider px-12 py-6 rounded uppercase transition-colors">
+                    EXPLORE INTEGRATIONS
+                  </button>
+                </div>
+
+                {/* Responsive grid cells */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 bg-paper-white">
+                  <IntegrationGridCell name="Jira" domain="jira.com" />
+                  <IntegrationGridCell name="Notion" domain="notion.so" />
+                  <IntegrationGridCell name="Datadog" domain="datadoghq.com" />
+                  <IntegrationGridCell name="Sentry" domain="sentry.io" />
+                  <IntegrationGridCell name="Splunk" domain="splunk.com" />
+                  <IntegrationGridCell name="Prometheus" domain="prometheus.io" />
+                  <IntegrationGridCell name="Helm" domain="helm.sh" />
+                  <IntegrationGridCell name="AWS" domain="aws.amazon.com" />
+                  <IntegrationGridCell name="Rancher" domain="rancher.com" />
+                  <IntegrationGridCell name="Slack" domain="slack.com" />
+                  <IntegrationGridCell name="PagerDuty" domain="pagerduty.com" />
+                  <IntegrationGridCell name="Okta" domain="okta.com" />
+                  <IntegrationGridCell name="Google Cloud" domain="cloud.google.com" />
+                  <IntegrationGridCell name="Terraform" domain="terraform.io" />
+                  <IntegrationGridCell name="Ansible" domain="ansible.com" />
+                  <IntegrationGridCell name="Docker" domain="docker.com" />
+                  <IntegrationGridCell name="GitHub" domain="github.com" />
+                  <IntegrationGridCell isSpecial specialText="AND 20+ MORE" />
                 </div>
 
               </div>
+
             </section>
+
+            {/* Slanted Line Separator after Integrations Section */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
 
             {/* Security & Trust Card Section */}
             <section id="security" className="bg-paper-white py-40 md:py-80 w-full border-b border-mist scroll-mt-40">
@@ -836,23 +904,18 @@ export function LandingClient() {
                   </div>
 
                   {/* Security Right: Compliance seals */}
-                  <div className="bg-soft-snow border border-mist p-16 sm:p-24 md:p-32 rounded flex flex-col justify-center space-y-16 md:space-y-24">
+                  <div className="flex flex-col justify-center items-center space-y-16 md:space-y-24 w-full">
                     <span className="font-mono text-[11px] uppercase tracking-wider text-fog block text-center">
                       VERIFIED ENTERPRISE COMPLIANCE
                     </span>
 
-                    <div className="flex flex-wrap items-center justify-center gap-6">
-                      {["SOC 2 TYPE II", "GDPR COMPLIANT", "HIPAA SECURE", "CCPA COVERED"].map((seal) => (
-                        <div
-                          key={seal}
-                          className="size-24 rounded-full border border-mist bg-paper-white flex flex-col items-center justify-center p-3 text-center space-y-1 shadow-inner"
-                        >
-                          <Lock className="size-4 text-iris-violet" />
-                          <span className="font-mono text-[9px] font-bold tracking-tight text-graphite-ink leading-tight">
-                            {seal}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="w-full flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="https://cdn.prod.website-files.com/699341b056e69edfd116210e/699769923b2e71e6a3024322_Frame%201272629275-p-800.png"
+                        alt="Verified Enterprise Compliance Badges"
+                        className="w-full max-w-[480px] sm:max-w-[560px] md:max-w-[640px] object-contain select-none"
+                      />
                     </div>
                   </div>
 
@@ -860,47 +923,148 @@ export function LandingClient() {
               </div>
             </section>
 
-            {/* Custom Workers Banner Section */}
-            <section className="bg-paper-white py-32 md:py-64 w-full px-16 md:px-24">
-              <div className="border border-mist rounded bg-soft-snow p-16 sm:p-24 md:p-32 flex flex-col md:flex-row items-start md:items-center justify-between gap-16 md:gap-24 relative overflow-hidden">
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="size-10 rounded bg-iris-violet text-paper-white flex items-center justify-center shadow-sm">
-                    <GitPullRequest className="size-5" />
-                  </div>
-                  <div className="text-left space-y-1">
-                    <h4 className="font-sans font-semibold text-graphite-ink text-[16px]">Need a Custom DevOps Agent?</h4>
-                    <p className="text-slate text-[14px]">
-                      Build custom rules, private VPC tunnels, or custom tools tailored to your legacy environment.
-                    </p>
+            {/* Section Separator */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
+
+            {/* CTA Banner Section */}
+            <section className="bg-paper-white py-32 md:py-64 w-full px-16 md:px-24 border-b border-mist">
+              <div className="bg-paper-white border border-mist rounded relative overflow-hidden px-24 py-48 md:py-64 text-center flex flex-col items-center justify-center min-h-[320px]">
+
+                {/* Background Image (cta.jpeg) with fade effect & cache-bypassing version parameter */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/cta.jpeg?v=2"
+                  alt="CTA Background illustration"
+                  className="absolute inset-0 w-full h-full object-cover object-center select-none pointer-events-none opacity-70 z-0"
+                />
+
+                {/* White radial gradient overlay to keep text highly legible and fade the image edges */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.92)_20%,rgba(255,255,255,0.4)_100%)] z-10 pointer-events-none" />
+
+                {/* Content Block */}
+                <div className="relative z-20 max-w-2xl px-16 space-y-16 flex flex-col items-center">
+                  <h3 className="font-lustria text-3xl sm:text-4xl lg:text-[44px] text-graphite-ink tracking-tight leading-tight select-none">
+                    Resolve Incidents Autonomously
+                  </h3>
+                  <p className="text-slate text-[14px] sm:text-[16px] leading-relaxed max-w-lg select-none">
+                    Every hour your team spends troubleshooting outages, running manual diagnostics, or drafting hotfixes is wasted. Rhea automates DevOps operations autonomously.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-16 pt-8 w-full sm:w-auto">
+                    <Link href="/auth/signin" className="w-full sm:w-auto">
+                      <button className="w-full bg-iris-violet hover:bg-deep-iris text-paper-white font-medium text-[13px] tracking-wide px-24 py-[12px] rounded shadow-sm hover:scale-[1.01] active:scale-95 transition-all uppercase">
+                        GET EARLY ACCESS
+                      </button>
+                    </Link>
+                    <a href="#features" className="w-full sm:w-auto">
+                      <button className="w-full border border-slate hover:bg-soft-snow text-graphite-ink font-medium text-[13px] tracking-wide px-24 py-[12px] rounded hover:scale-[1.01] active:scale-95 transition-all uppercase">
+                        EXPLORE AI WORKERS
+                      </button>
+                    </a>
                   </div>
                 </div>
 
-                <button className="bg-iris-violet hover:bg-deep-iris text-paper-white font-semibold text-[13px] tracking-wide px-5 py-3 rounded shadow-sm shrink-0 uppercase transition-colors relative z-10">
-                  REQUEST CUSTOM WORKER
-                </button>
               </div>
             </section>
+
+            {/* Section Separator */}
+            <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
+
+            {/* Redesigned Footer Section inside the main container */}
+            <footer className="w-full bg-paper-white px-16 sm:px-32 py-48 md:py-64 z-10 relative overflow-hidden">
+
+              {/* Background Image (footer.jpeg) with fade from upward & cache bypass */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/footer.jpeg?v=1"
+                alt="Footer background illustration"
+                className="absolute inset-0 w-full h-full object-cover object-bottom select-none pointer-events-none opacity-30 z-0"
+              />
+
+              {/* White fade from upward gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-paper-white via-paper-white/85 to-transparent z-10 pointer-events-none" />
+
+              <div className="relative z-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-32 md:gap-48 items-start">
+
+                {/* Column 1: Brand Info (spans 2 columns on large viewports) */}
+                <div className="lg:col-span-2 space-y-16 text-left">
+                  <div className="flex items-center gap-8 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center size-24 rounded bg-iris-violet text-paper-white shadow-sm">
+                        <StarburstIcon className="size-3.5" />
+                      </div>
+                      <span className="font-lustria text-[18px] tracking-tight text-graphite-ink font-bold">rhea</span>
+                    </div>
+                    <div className="flex items-center gap-8 font-mono text-[9px] uppercase tracking-wider text-fog border-l border-mist pl-8 h-[16px]">
+                      <span>backed by</span>
+                      <div className="flex items-center gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`https://img.logo.dev/v0.dev?token=${LOGO_DEV_PUBLIC_KEY}&size=32`}
+                          alt="v0 logo"
+                          className="h-[12px] w-auto object-contain"
+                        />
+                      </div>
+                      <span>&</span>
+                      <div className="flex items-center gap-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`https://img.logo.dev/aws.amazon.com?token=${LOGO_DEV_PUBLIC_KEY}&size=32`}
+                          alt="AWS logo"
+                          className="h-[14px] w-auto object-contain"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-slate text-[14px] leading-relaxed max-w-sm">
+                    The autonomous DevOps engineer that troubleshoots outages, runs isolated sandbox diagnostics, and remediates production incidents safely.
+                  </p>
+                  <div className="font-sans text-[12px] text-fog pt-8">
+                    <p>© 2026 Rhea Systems, Inc. All rights reserved.</p>
+                    <p className="mt-2">Built on the Eve Framework.</p>
+                  </div>
+                </div>
+
+                {/* Column 2: Platform Agents */}
+                <div className="space-y-12 text-left">
+                  <h5 className="font-mono text-[10px] uppercase tracking-wider text-graphite-ink font-semibold">AI WORKERS</h5>
+                  <ul className="space-y-8 text-[13px] font-sans text-slate">
+                    <li><a href="#features" className="hover:text-iris-violet transition-colors">Planner</a></li>
+                    <li><a href="#features" className="hover:text-iris-violet transition-colors">Investigator</a></li>
+                    <li><a href="#features" className="hover:text-iris-violet transition-colors">Sandbox Auditor</a></li>
+                    <li><a href="#features" className="hover:text-iris-violet transition-colors">Remediation</a></li>
+                    <li><a href="#features" className="hover:text-iris-violet transition-colors">Security Approver</a></li>
+                  </ul>
+                </div>
+
+                {/* Column 3: Trust & Platform */}
+                <div className="space-y-12 text-left">
+                  <h5 className="font-mono text-[10px] uppercase tracking-wider text-graphite-ink font-semibold">RESOURCES</h5>
+                  <ul className="space-y-8 text-[13px] font-sans text-slate">
+                    <li><a href="#integrations" className="hover:text-iris-violet transition-colors">Integrations</a></li>
+                    <li><a href="#security" className="hover:text-iris-violet transition-colors">Trust Center</a></li>
+                    <li><a href="https://github.com" className="hover:text-iris-violet transition-colors">Eve Framework Docs</a></li>
+                    <li><a href="#security" className="hover:text-iris-violet transition-colors">Security Audit</a></li>
+                  </ul>
+                </div>
+
+                {/* Column 4: Company */}
+                <div className="space-y-12 text-left">
+                  <h5 className="font-mono text-[10px] uppercase tracking-wider text-graphite-ink font-semibold">COMPANY</h5>
+                  <ul className="space-y-8 text-[13px] font-sans text-slate">
+                    <li><a href="/about" className="hover:text-iris-violet transition-colors">About Us</a></li>
+                    <li><a href="/careers" className="hover:text-iris-violet transition-colors">Careers</a></li>
+                    <li><a href="/blog" className="hover:text-iris-violet transition-colors">Outage Blog</a></li>
+                    <li><a href="/contact" className="hover:text-iris-violet transition-colors">Contact</a></li>
+                  </ul>
+                </div>
+
+              </div>
+            </footer>
 
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="w-full border-t border-mist bg-paper-white px-16 md:px-24 py-24 md:py-40 z-10">
-        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center size-6 rounded bg-iris-violet text-paper-white shadow-sm">
-              <StarburstIcon className="size-3.5" />
-            </div>
-            <span className="font-lustria text-base tracking-tight text-graphite-ink font-bold">rhea</span>
-          </div>
-
-          <div className="font-sans text-[12px] text-fog text-center md:text-right space-y-1">
-            <p>© 2026 Rhea Systems, Inc. All rights reserved.</p>
-            <p>Built on the Eve Framework and Aurora DSQL</p>
-          </div>
-        </div>
-      </footer>
 
     </div>
   );

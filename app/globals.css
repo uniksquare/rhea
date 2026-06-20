@@ -142,6 +142,6 @@ textarea {
     var(--color-mist),
     var(--color-mist) 1px,
     transparent 1px,
-    transparent 12px
+    transparent 6px
   );
 }
