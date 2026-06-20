@@ -23,9 +23,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect("/auth/signin");
   }
 
-  // Navigation Items: Root "/" is now Agent Chat, and "/overview" is Overview
+  // Navigation Items
   const navItems = [
-    { name: "Agent Chat", href: "/", icon: MessageSquare },
+    { name: "Agent Chat", href: "/chat", icon: MessageSquare },
     { name: "Overview", href: "/overview", icon: LayoutGrid },
     { name: "Incidents", href: "/incidents", icon: AlertCircle },
     { name: "Team & Keys", href: "/team", icon: Users },

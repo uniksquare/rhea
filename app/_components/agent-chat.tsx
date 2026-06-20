@@ -1,7 +1,8 @@
 "use client";
 
 import { useEveAgent } from "eve/react";
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, Loader2 } from "lucide-react";
+import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
   Conversation,
   ConversationContent,
@@ -85,6 +86,14 @@ export function AgentChat() {
                 onInputResponses={(inputResponses) => agent.send({ inputResponses })}
               />
             ))}
+            {isBusy && agent.status === "submitted" && (
+              <Message from="assistant" className="animate-pulse">
+                <MessageContent className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin text-purple-400" />
+                  <span>Rhea is thinking...</span>
+                </MessageContent>
+              </Message>
+            )}
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>

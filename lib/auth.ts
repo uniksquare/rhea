@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import { queryDsql } from "./dsql";
+import { seedOrg } from "./seed-org";
 
 /**
  * Auth.js v5 type augmentation.
@@ -102,6 +103,10 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
             `INSERT INTO org_settings (org_id, settings) VALUES ($1, '{}');`,
             [orgId]
           );
+
+          // Seed mock data for the new organization
+          const orgName = `${user.name || user.email.split("@")[0]}'s Org`;
+          await seedOrg(orgId, orgName);
         } else {
           await queryDsql(
             "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE email = $1;",

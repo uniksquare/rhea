@@ -30,6 +30,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { AgentMessage } from "@/app/_components/agent-message";
+import { Message, MessageContent } from "@/components/ai-elements/message";
 
 interface UserInfo {
   id?: string;
@@ -327,6 +328,14 @@ export function IncidentDetailClient({
                       onInputResponses={(inputResponses) => agent.send({ inputResponses })}
                     />
                   ))}
+                  {isBusy && agent.status === "submitted" && (
+                    <Message from="assistant" className="animate-pulse">
+                      <MessageContent className="flex items-center gap-2 text-zinc-500">
+                        <Loader2 className="size-3.5 animate-spin text-purple-400" />
+                        <span className="text-xs">Rhea is thinking...</span>
+                      </MessageContent>
+                    </Message>
+                  )}
                 </ConversationContent>
                 <ConversationScrollButton />
               </Conversation>
