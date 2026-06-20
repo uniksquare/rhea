@@ -102,6 +102,38 @@ const subagentsConfig: Record<string, {
     borderColor: "border-violet-500/20 dark:border-violet-400/25",
     icon: Brain,
     actionText: "Retrieving historically matching incident cases and templates..."
+  },
+  github_connector: {
+    name: "GitHub PR Creator",
+    color: "text-orange-500 dark:text-orange-400",
+    bgColor: "bg-orange-500/5 dark:bg-orange-400/5",
+    borderColor: "border-orange-500/20 dark:border-orange-400/25",
+    icon: Sparkles,
+    actionText: "Drafting remediation Pull Request on GitHub repository..."
+  },
+  slack_connector: {
+    name: "Slack Alert Integrator",
+    color: "text-pink-500 dark:text-pink-400",
+    bgColor: "bg-pink-500/5 dark:bg-pink-400/5",
+    borderColor: "border-pink-500/20 dark:border-pink-400/25",
+    icon: ShieldCheck,
+    actionText: "Publishing Slack alerts and approval updates..."
+  },
+  eventbridge_publisher: {
+    name: "AWS EventBridge Event Bus",
+    color: "text-amber-500 dark:text-amber-400",
+    bgColor: "bg-amber-500/5 dark:bg-amber-400/5",
+    borderColor: "border-amber-500/20 dark:border-amber-400/25",
+    icon: Cpu,
+    actionText: "Publishing lifecycle state checkpoints to AWS EventBridge..."
+  },
+  aws_connectors: {
+    name: "AWS CloudWatch & EKS State",
+    color: "text-teal-500 dark:text-teal-400",
+    bgColor: "bg-teal-500/5 dark:bg-teal-400/5",
+    borderColor: "border-teal-500/20 dark:border-teal-400/25",
+    icon: Search,
+    actionText: "Retrieving application logs and cluster metrics..."
   }
 };
 
