@@ -4,7 +4,7 @@ import { z } from "zod";
 export default defineTool({
   description: "Create a draft GitHub Pull Request with proposed code or configuration changes.",
   inputSchema: z.object({
-    repo: z.string().default("h0-hackathon/rhea-app").describe("Target GitHub repository (owner/repo)"),
+    repo: z.string().default("rhea-platform/rhea-app").describe("Target GitHub repository (owner/repo)"),
     branch: z.string().describe("Branch name containing the fix"),
     title: z.string().describe("PR title describing the remediation"),
     description: z.string().describe("Detailed description of the changes made and incident reference"),
