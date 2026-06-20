@@ -92,6 +92,93 @@ export function LandingClient() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
+  // States & Refs for the Interactive 'How it works' Section
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
+  const [displayStep, setDisplayStep] = useState<1 | 2 | 3>(1);
+  const [isStepFading, setIsStepFading] = useState(false);
+  const [isVolumeMuted, setIsVolumeMuted] = useState(true); // Default to muted to comply with general browser autoplay policies
+  const [stepProgress, setStepProgress] = useState(0);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
+  const stepVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Transition the step video source with a fade-out / fade-in effect
+  useEffect(() => {
+    setIsStepFading(true);
+    const timer = setTimeout(() => {
+      setDisplayStep(activeStep);
+      setIsStepFading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [activeStep]);
+
+  // Load and play step video when displayStep changes
+  useEffect(() => {
+    const video = stepVideoRef.current;
+    if (!video) return;
+
+    if (displayStep !== 3) {
+      video.load();
+      video.muted = isVolumeMuted;
+
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn("Autoplay with audio prevented. Retrying muted...", err);
+          video.muted = true;
+          video.play().catch(e => console.error("Muted playback failed too:", e));
+        });
+      }
+    }
+  }, [displayStep, isVolumeMuted]);
+
+  // Track active video time updates for progress bar sync
+  useEffect(() => {
+    const video = stepVideoRef.current;
+    if (!video || displayStep === 3) return;
+
+    const handleTimeUpdate = () => {
+      if (video.duration) {
+        setStepProgress((video.currentTime / video.duration) * 100);
+      }
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, [displayStep]);
+
+  // Step 3 (blank/background-only) progress counter and auto-advance loop timer
+  useEffect(() => {
+    if (activeStep === 3) {
+      setStepProgress(0);
+      const intervalTime = 100;
+      const totalTime = 6000;
+      const increment = (intervalTime / totalTime) * 100;
+
+      const progressTimer = setInterval(() => {
+        setStepProgress((prev) => {
+          const next = prev + increment;
+          return next >= 100 ? 100 : next;
+        });
+      }, intervalTime);
+
+      let loopTimer: NodeJS.Timeout | undefined;
+      if (autoPlayEnabled) {
+        loopTimer = setTimeout(() => {
+          setAutoPlayEnabled(false);
+        }, totalTime);
+      }
+
+      return () => {
+        clearInterval(progressTimer);
+        if (loopTimer) clearTimeout(loopTimer);
+      };
+    } else {
+      setStepProgress(0);
+    }
+  }, [activeStep, autoPlayEnabled]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -341,7 +428,7 @@ export function LandingClient() {
             </section>
 
             {/* Persona Tabs Section */}
-            <section id="features" className="w-full py-40 md:py-80 scroll-mt-40 border-b border-mist">
+            <section id="features" className="w-full pt-40 md:pt-80 pb-24 md:pb-32 scroll-mt-40">
               <div className="text-center space-y-4 max-w-2xl mx-auto px-16 sm:px-24 mb-32 md:mb-48">
                 <span className="font-mono text-[11px] uppercase tracking-wider text-slate">
                   YOUR NEXT HIRE
@@ -453,6 +540,182 @@ export function LandingClient() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* How It Works Section */}
+            <section id="how-it-works" className="w-full pt-24 md:pt-32 pb-0 scroll-mt-40 border-b border-mist bg-paper-white z-10">
+              <div className="text-center space-y-4 max-w-2xl mx-auto px-16 sm:px-24 mb-16 md:mb-24">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-slate">
+                  NO LEARNING CURVE
+                </span>
+                <h2 className="font-lustria text-3xl sm:text-4xl text-graphite-ink leading-tight tracking-[-1.5px] font-normal">
+                  How it works
+                </h2>
+                <p className="text-slate text-[15px] leading-relaxed">
+                  Rhea AI Workers connect to your existing tools and start executing DevOps work autonomously — from day one.
+                </p>
+              </div>
+
+              {/* Two Column Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 border-t border-mist divide-y lg:divide-y-0 lg:divide-x divide-mist w-full">
+
+                {/* Left Column: Interactive Steps List */}
+                <div className="flex flex-col justify-center divide-y divide-mist w-full bg-paper-white">
+
+                  {/* Step 1 */}
+                  <button
+                    onClick={() => {
+                      setAutoPlayEnabled(false);
+                      setActiveStep(1);
+                    }}
+                    className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 1
+                        ? "bg-soft-snow/40"
+                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      }`}
+                  >
+                    {/* Vertical Left Progress Bar */}
+                    {activeStep === 1 ? (
+                      <>
+                        <div className="absolute left-0 inset-y-0 w-[4px] bg-mist" />
+                        <div
+                          className="absolute left-0 top-0 w-[4px] bg-iris-violet transition-all duration-100 ease-linear"
+                          style={{ height: `${stepProgress}%` }}
+                        />
+                      </>
+                    ) : (
+                      <div className="absolute left-0 inset-y-0 w-[4px] bg-transparent" />
+                    )}
+                    <span className={`font-mono text-[11px] uppercase tracking-wider mb-8 transition-colors ${activeStep === 1 ? "text-iris-violet font-semibold" : "text-slate"}`}>STEP 1</span>
+                    <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 1 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Ask Rhea</h3>
+
+                    <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 1
+                        ? "grid-rows-[1fr] opacity-100 mt-12"
+                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      }`}>
+                      <div className="overflow-hidden">
+                        <p className="text-slate text-[14px] leading-relaxed">
+                          Tell Rhea what needs to be solved or diagnosed in natural language or forward alert details directly.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Step 2 */}
+                  <button
+                    onClick={() => {
+                      setAutoPlayEnabled(false);
+                      setActiveStep(2);
+                    }}
+                    className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 2
+                        ? "bg-soft-snow/40"
+                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      }`}
+                  >
+                    {/* Vertical Left Progress Bar */}
+                    {activeStep === 2 ? (
+                      <>
+                        <div className="absolute left-0 inset-y-0 w-[4px] bg-mist" />
+                        <div
+                          className="absolute left-0 top-0 w-[4px] bg-iris-violet transition-all duration-100 ease-linear"
+                          style={{ height: `${stepProgress}%` }}
+                        />
+                      </>
+                    ) : (
+                      <div className="absolute left-0 inset-y-0 w-[4px] bg-transparent" />
+                    )}
+                    <span className={`font-mono text-[11px] uppercase tracking-wider mb-8 transition-colors ${activeStep === 2 ? "text-iris-violet font-semibold" : "text-slate"}`}>STEP 2</span>
+                    <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 2 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Connect tools</h3>
+
+                    <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 2
+                        ? "grid-rows-[1fr] opacity-100 mt-12"
+                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      }`}>
+                      <div className="overflow-hidden">
+                        <p className="text-slate text-[14px] leading-relaxed">
+                          Rhea plugs securely into your cloud infrastructure, databases, and monitoring systems.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Step 3 */}
+                  <button
+                    onClick={() => {
+                      setAutoPlayEnabled(false);
+                      setActiveStep(3);
+                    }}
+                    className={`flex flex-col text-left p-24 sm:p-32 relative transition-all duration-300 w-full overflow-hidden outline-none ${activeStep === 3
+                        ? "bg-soft-snow/40"
+                        : "opacity-60 hover:opacity-100 hover:bg-soft-snow/10"
+                      }`}
+                  >
+                    {/* Vertical Left Progress Bar */}
+                    {activeStep === 3 ? (
+                      <>
+                        <div className="absolute left-0 inset-y-0 w-[4px] bg-mist" />
+                        <div
+                          className="absolute left-0 top-0 w-[4px] bg-iris-violet transition-all duration-100 ease-linear"
+                          style={{ height: `${stepProgress}%` }}
+                        />
+                      </>
+                    ) : (
+                      <div className="absolute left-0 inset-y-0 w-[4px] bg-transparent" />
+                    )}
+                    <span className={`font-mono text-[11px] uppercase tracking-wider mb-8 transition-colors ${activeStep === 3 ? "text-iris-violet font-semibold" : "text-slate"}`}>STEP 3</span>
+                    <h3 className={`font-lustria text-xl sm:text-2xl transition-colors ${activeStep === 3 ? "text-graphite-ink font-bold" : "text-fog font-normal"}`}>Sit back and relax</h3>
+
+                    <div className={`grid transition-all duration-300 ease-in-out ${activeStep === 3
+                        ? "grid-rows-[1fr] opacity-100 mt-12"
+                        : "grid-rows-[0fr] opacity-0 overflow-hidden"
+                      }`}>
+                      <div className="overflow-hidden">
+                        <p className="text-slate text-[14px] leading-relaxed">
+                          Rhea analyzes telemetry, drafts config hotfixes, and loops in your team for approvals.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                </div>
+
+                {/* Right Column: Dynamic Media Container */}
+                <div className="relative flex items-stretch bg-soft-snow min-h-[360px] lg:min-h-none overflow-hidden p-24 sm:p-32">
+                  <div className={`w-full h-full min-h-[300px] sm:min-h-[350px] border border-mist rounded bg-paper-white relative overflow-hidden transition-all duration-300 shadow-sm flex items-center justify-center ${isStepFading ? "opacity-0 scale-98" : "opacity-100 scale-100"
+                    }`}>
+
+                    {displayStep === 3 ? (
+                      /* Step 3: Blank background with color and glowing branding */
+                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-iris-violet text-paper-white p-32 select-none">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_0%,transparent_70%)]" />
+                        <StarburstIcon className="size-48 text-paper-white animate-pulse" />
+                        <h4 className="font-lustria text-xl sm:text-2xl mt-16 text-center tracking-tight">Autonomous Remediation Active</h4>
+                        <p className="font-mono text-[9px] text-powder-blue mt-6 tracking-wider uppercase bg-deep-iris/30 border border-powder-blue/20 px-8 py-[2px] rounded-full">SIT BACK AND RELAX</p>
+                      </div>
+                    ) : (
+                      /* Step 1 & 2: Video players */
+                      <div className="w-full h-full relative flex items-center justify-center bg-soft-snow overflow-hidden">
+                        <video
+                          ref={stepVideoRef}
+                          src={displayStep === 1 ? "/step1.mp4" : "/step2.mp4"}
+                          className="w-full h-full object-cover rounded bg-soft-snow [mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)]"
+                          playsInline
+                          muted
+                          loop={!autoPlayEnabled}
+                          onEnded={() => {
+                            if (autoPlayEnabled) {
+                              if (activeStep < 3) {
+                                setActiveStep((prev) => (prev + 1) as 1 | 2 | 3);
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
               </div>
             </section>
 
