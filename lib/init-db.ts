@@ -125,6 +125,16 @@ async function run() {
         success_rate FLOAT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+    `CREATE TABLE IF NOT EXISTS connector_instances (
+        instance_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID NOT NULL,
+        connector_type VARCHAR(100) NOT NULL,
+        display_name VARCHAR(255) NOT NULL,
+        config_encrypted TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'ACTIVE',
+        last_health_check TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
 
     // ── Alters for pre-existing tables to ensure columns exist ──
     `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS org_id UUID;`,

@@ -8,7 +8,9 @@ import {
   MessageSquare, 
   Users, 
   Settings,
-  LogOut
+  Shield,
+  LogOut,
+  Plug
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -31,11 +33,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect("/auth/signin");
   }
 
-  // Navigation Items
   const navItems = [
     { name: "Agent Chat", href: "/chat", icon: MessageSquare },
     { name: "Overview", href: "/overview", icon: LayoutGrid },
     { name: "Incidents", href: "/incidents", icon: AlertCircle },
+    { name: "Integrations", href: "/connectors", icon: Plug },
     { name: "Team & Keys", href: "/team", icon: Users },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
