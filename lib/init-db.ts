@@ -135,6 +135,27 @@ async function run() {
         last_health_check TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+    `CREATE TABLE IF NOT EXISTS sandbox_sessions (
+        session_id VARCHAR(255) PRIMARY KEY,
+        org_id UUID NOT NULL,
+        user_id UUID,
+        status VARCHAR(50) DEFAULT 'ACTIVE',
+        allowed_domains JSONB DEFAULT '[]',
+        config_limits JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
+    `CREATE TABLE IF NOT EXISTS sandbox_executions (
+        execution_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id VARCHAR(255) NOT NULL,
+        command TEXT NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        exit_code INT,
+        stdout TEXT,
+        stderr TEXT,
+        execution_time_ms INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
 
     // ── Alters for pre-existing tables to ensure columns exist ──
     `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS org_id UUID;`,
