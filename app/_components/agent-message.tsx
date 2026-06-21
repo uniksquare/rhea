@@ -41,97 +41,97 @@ const subagentsConfig: Record<string, {
 }> = {
   planner: {
     name: "Planner Subagent",
-    color: "text-indigo-500 dark:text-indigo-400",
-    bgColor: "bg-indigo-500/5 dark:bg-indigo-400/5",
-    borderColor: "border-indigo-500/20 dark:border-indigo-400/25",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50/50",
+    borderColor: "border-indigo-100",
     icon: Brain,
     actionText: "Deconstructing objectives and planning execution checklist..."
   },
   investigator: {
     name: "Investigator Subagent",
-    color: "text-emerald-500 dark:text-emerald-400",
-    bgColor: "bg-emerald-500/5 dark:bg-emerald-400/5",
-    borderColor: "border-emerald-500/20 dark:border-emerald-400/25",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50/50",
+    borderColor: "border-emerald-100",
     icon: Search,
     actionText: "Analyzing logs, query telemetry, and tracing metrics..."
   },
   sandbox: {
     name: "Sandbox Subagent",
-    color: "text-amber-500 dark:text-amber-400",
-    bgColor: "bg-amber-500/5 dark:bg-amber-400/5",
-    borderColor: "border-amber-500/20 dark:border-amber-400/25",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50/50",
+    borderColor: "border-amber-100",
     icon: Terminal,
     actionText: "Running diagnostic commands inside secure sandbox container..."
   },
   remediation: {
     name: "Remediation Subagent",
-    color: "text-rose-500 dark:text-rose-400",
-    bgColor: "bg-rose-500/5 dark:bg-rose-400/5",
-    borderColor: "border-rose-500/20 dark:border-rose-400/25",
+    color: "text-rose-600",
+    bgColor: "bg-rose-50/50",
+    borderColor: "border-rose-100",
     icon: Sparkles,
     actionText: "Formulating code changes, rollback scripts, and PRs..."
   },
   approver: {
     name: "Approver Subagent",
-    color: "text-blue-500 dark:text-blue-400",
-    bgColor: "bg-blue-500/5 dark:bg-blue-400/5",
-    borderColor: "border-blue-500/20 dark:border-blue-400/25",
+    color: "text-blue-600",
+    bgColor: "bg-blue-50/50",
+    borderColor: "border-blue-100",
     icon: ShieldCheck,
     actionText: "Evaluating risk levels and policy controls for verification..."
   },
   ping: {
     name: "Ping Connectivity Test",
-    color: "text-teal-500 dark:text-teal-400",
-    bgColor: "bg-teal-500/5 dark:bg-teal-400/5",
-    borderColor: "border-teal-500/20 dark:border-teal-400/25",
+    color: "text-teal-600",
+    bgColor: "bg-teal-50/50",
+    borderColor: "border-teal-100",
     icon: Cpu,
     actionText: "Pinging agent core runtime execution harness..."
   },
   db_incident: {
     name: "DSQL Relational Log Writer",
-    color: "text-cyan-500 dark:text-cyan-400",
-    bgColor: "bg-cyan-500/5 dark:bg-cyan-400/5",
-    borderColor: "border-cyan-500/20 dark:border-cyan-400/25",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-50/50",
+    borderColor: "border-cyan-100",
     icon: Database,
     actionText: "Persisting incident data models directly in Aurora DSQL..."
   },
   db_memory: {
     name: "DSQL Relational Memory Query",
-    color: "text-violet-500 dark:text-violet-400",
-    bgColor: "bg-violet-500/5 dark:bg-violet-400/5",
-    borderColor: "border-violet-500/20 dark:border-violet-400/25",
+    color: "text-violet-600",
+    bgColor: "bg-violet-50/50",
+    borderColor: "border-violet-100",
     icon: Brain,
     actionText: "Retrieving historically matching incident cases and templates..."
   },
   github_connector: {
     name: "GitHub PR Creator",
-    color: "text-orange-500 dark:text-orange-400",
-    bgColor: "bg-orange-500/5 dark:bg-orange-400/5",
-    borderColor: "border-orange-500/20 dark:border-orange-400/25",
+    color: "text-orange-600",
+    bgColor: "bg-orange-50/50",
+    borderColor: "border-orange-100",
     icon: Sparkles,
     actionText: "Drafting remediation Pull Request on GitHub repository..."
   },
   slack_connector: {
     name: "Slack Alert Integrator",
-    color: "text-pink-500 dark:text-pink-400",
-    bgColor: "bg-pink-500/5 dark:bg-pink-400/5",
-    borderColor: "border-pink-500/20 dark:border-pink-400/25",
+    color: "text-pink-600",
+    bgColor: "bg-pink-50/50",
+    borderColor: "border-pink-100",
     icon: ShieldCheck,
     actionText: "Publishing Slack alerts and approval updates..."
   },
   eventbridge_publisher: {
     name: "AWS EventBridge Event Bus",
-    color: "text-amber-500 dark:text-amber-400",
-    bgColor: "bg-amber-500/5 dark:bg-amber-400/5",
-    borderColor: "border-amber-500/20 dark:border-amber-400/25",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50/50",
+    borderColor: "border-amber-100",
     icon: Cpu,
     actionText: "Publishing lifecycle state checkpoints to AWS EventBridge..."
   },
   aws_connectors: {
     name: "AWS CloudWatch & EKS State",
-    color: "text-teal-500 dark:text-teal-400",
-    bgColor: "bg-teal-500/5 dark:bg-teal-400/5",
-    borderColor: "border-teal-500/20 dark:border-teal-400/25",
+    color: "text-teal-600",
+    bgColor: "bg-teal-50/50",
+    borderColor: "border-teal-100",
     icon: Search,
     actionText: "Retrieving application logs and cluster metrics..."
   }

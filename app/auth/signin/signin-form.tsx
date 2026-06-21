@@ -97,7 +97,7 @@ export function SignInForm() {
             <button
               onClick={() => handleSignIn("github")}
               disabled={isLoading !== null}
-              className="flex items-center justify-center gap-12 w-full px-16 py-[12px] border border-mist rounded font-mono text-[11px] uppercase tracking-wider text-graphite-ink hover:bg-soft-snow/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-paper-white"
+              className="flex items-center justify-center gap-[12px] w-full px-16 py-[12px] border border-mist rounded font-mono text-[11px] uppercase tracking-wider text-graphite-ink hover:bg-soft-snow/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-paper-white"
             >
               {isLoading === "github" ? (
                 <div className="size-16 border-2 border-mist border-t-iris-violet rounded-full animate-spin" />
@@ -115,7 +115,7 @@ export function SignInForm() {
             <button
               onClick={() => handleSignIn("google")}
               disabled={isLoading !== null}
-              className="flex items-center justify-center gap-12 w-full px-16 py-[12px] border border-mist rounded font-mono text-[11px] uppercase tracking-wider text-graphite-ink hover:bg-soft-snow/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-paper-white"
+              className="flex items-center justify-center gap-[12px] w-full px-16 py-[12px] border border-mist rounded font-mono text-[11px] uppercase tracking-wider text-graphite-ink hover:bg-soft-snow/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-paper-white"
             >
               {isLoading === "google" ? (
                 <div className="size-16 border-2 border-mist border-t-iris-violet rounded-full animate-spin" />

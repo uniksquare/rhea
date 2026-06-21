@@ -1020,7 +1020,7 @@ export function LandingClient() {
                     The autonomous DevOps engineer that troubleshoots outages, runs isolated sandbox diagnostics, and remediates production incidents safely.
                   </p>
                   <div className="font-sans text-[12px] text-fog pt-8">
-                    <p>© 2026 Rhea Systems, Inc. All rights reserved.</p>
+                    <p>© 2026 SuperXEpic, Inc. All rights reserved.</p>
                     <p className="mt-2">Built on the Eve Framework.</p>
                   </div>
                 </div>

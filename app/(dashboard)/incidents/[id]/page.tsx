@@ -55,7 +55,7 @@ export default async function IncidentDetailPage({ params }: IncidentDetailPageP
   );
 
   return (
-    <div className="h-[calc(100vh-3rem)] max-w-7xl mx-auto flex flex-col gap-6">
+    <div className="h-full w-full max-w-7xl mx-auto flex flex-col p-24">
       <IncidentDetailClient
         initialIncident={incident}
         initialInvestigation={investigation}

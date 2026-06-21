@@ -125,15 +125,15 @@ export function IncidentDetailClient({
   const getSeverityStyles = (sev: string) => {
     switch (sev) {
       case "CRITICAL":
-        return "bg-red-500/10 text-red-400 border-red-500/20";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       case "HIGH":
-        return "bg-orange-500/10 text-orange-400 border-orange-500/20";
+        return "bg-orange-50 text-orange-700 border-orange-200";
       case "MEDIUM":
-        return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       case "LOW":
-        return "bg-zinc-800 text-zinc-400 border-zinc-700";
+        return "bg-slate/5 text-slate border-slate/15";
       default:
-        return "bg-zinc-800 text-zinc-400 border-zinc-700";
+        return "bg-slate/5 text-slate border-slate/15";
     }
   };
 
@@ -147,103 +147,103 @@ export function IncidentDetailClient({
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-zinc-950 text-zinc-100 rounded-xl border border-zinc-800 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 bg-paper-white text-graphite-ink rounded border border-mist overflow-hidden shadow-sm">
       {/* Top Banner / Navbar */}
-      <header className="h-16 flex items-center justify-between px-6 border-b border-zinc-800 bg-zinc-900/40 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="h-[64px] flex items-center justify-between px-[24px] border-b border-mist bg-soft-snow shrink-0">
+        <div className="flex items-center gap-[12px]">
           <Link href="/incidents">
-            <Button variant="ghost" size="sm" className="hover:bg-zinc-800 text-zinc-400 hover:text-white p-2">
-              <ChevronLeft className="size-4" />
-            </Button>
+            <button className="hover:bg-paper-white border border-transparent hover:border-mist text-slate hover:text-graphite-ink p-[8px] rounded transition-all cursor-pointer">
+              <ChevronLeft className="size-[16px]" />
+            </button>
           </Link>
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${getSeverityStyles(incident.severity)}`}>
+          <div className="flex items-center gap-[12px]">
+            <span className={`px-[8px] py-[2px] rounded-[100px] text-[9px] font-mono uppercase tracking-wider border leading-none font-semibold ${getSeverityStyles(incident.severity)}`}>
               {incident.severity}
             </span>
-            <h2 className="text-sm font-semibold text-white truncate max-w-md">{incident.title}</h2>
+            <h2 className="font-lustria text-sm font-semibold text-graphite-ink truncate max-w-md">{incident.title}</h2>
           </div>
         </div>
 
         {/* Status Dropdown */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5">
-            <span className="text-xs text-zinc-500">Status:</span>
+        <div className="flex items-center gap-[12px]">
+          <div className="flex items-center gap-[6px] bg-paper-white border border-mist rounded px-[12px] py-[6px]">
+            <span className="text-xs text-slate">Status:</span>
             {isReadOnly ? (
-              <span className="text-zinc-200 text-xs font-semibold px-1">{incident.status}</span>
+              <span className="text-graphite-ink text-xs font-semibold px-1">{incident.status}</span>
             ) : (
               <select
                 disabled={isUpdatingStatus}
                 value={incident.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="bg-transparent border-none text-zinc-200 text-xs font-semibold focus:outline-hidden cursor-pointer"
+                className="bg-transparent border-none text-graphite-ink text-xs font-semibold focus:outline-hidden cursor-pointer"
               >
-                <option value="ACTIVE" className="bg-zinc-950 text-red-400">Active</option>
-                <option value="INVESTIGATING" className="bg-zinc-950 text-purple-400">Investigating</option>
-                <option value="RESOLVED" className="bg-zinc-950 text-emerald-400">Resolved</option>
+                <option value="ACTIVE" className="bg-paper-white text-rose-600 font-semibold">Active</option>
+                <option value="INVESTIGATING" className="bg-paper-white text-iris-violet font-semibold">Investigating</option>
+                <option value="RESOLVED" className="bg-paper-white text-emerald-600 font-semibold">Resolved</option>
               </select>
             )}
-            {isUpdatingStatus && <Loader2 className="size-3 animate-spin text-zinc-400" />}
+            {isUpdatingStatus && <Loader2 className="size-[12px] animate-spin text-slate" />}
           </div>
         </div>
       </header>
 
       {/* Main Cockpit Split Layout */}
-      <div className="flex-1 flex min-h-0 divide-x divide-zinc-800">
+      <div className="flex-1 flex min-h-0 divide-x divide-mist">
         {/* Left Panel: Incident Details & Timeline */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-24 space-y-24">
           {/* Timeline */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Timeline Checklist</h3>
-            <div className="grid grid-cols-5 gap-2">
+          <div className="space-y-[12px]">
+            <h3 className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Timeline Checklist</h3>
+            <div className="grid grid-cols-5 gap-[8px]">
               {timelineSteps.map((step, idx) => (
                 <div 
                   key={step.name}
-                  className={`p-3 rounded-lg border text-center flex flex-col items-center gap-1.5 transition-all ${
+                  className={`p-[12px] rounded border text-center flex flex-col items-center gap-[6px] transition-all ${
                     step.done
-                      ? "bg-purple-950/15 border-purple-800/40 text-purple-200"
-                      : "bg-zinc-900/40 border-zinc-800 text-zinc-500"
+                      ? "bg-iris-violet/5 border-iris-violet/20 text-iris-violet"
+                      : "bg-soft-snow border-mist text-slate"
                   }`}
                 >
                   {step.done ? (
-                    <CheckCircle2 className="size-4 text-purple-400" />
+                    <CheckCircle2 className="size-[16px] text-iris-violet" />
                   ) : (
-                    <div className="size-4 rounded-full border border-zinc-700 flex items-center justify-center text-[9px] font-bold">
+                    <div className="size-[16px] rounded-full border border-mist flex items-center justify-center text-[9px] font-mono font-bold">
                       {idx + 1}
                     </div>
                   )}
-                  <span className="text-[10px] font-semibold truncate w-full">{step.name}</span>
+                  <span className="text-[9px] font-mono uppercase tracking-wider truncate w-full">{step.name}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Description */}
-          <div className="space-y-2 bg-zinc-900/20 border border-zinc-900 rounded-lg p-4">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Description</h3>
-            <p className="text-sm text-zinc-300 leading-relaxed">
+          <div className="space-y-[8px] bg-soft-snow border border-mist rounded p-16">
+            <h3 className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Description</h3>
+            <p className="text-sm text-graphite-ink leading-relaxed">
               {incident.description || "No description provided."}
             </p>
           </div>
 
           {/* Ranked Root Causes */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Ranked Roots & Analysis</h3>
+          <div className="space-y-[12px]">
+            <h3 className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Ranked Roots & Analysis</h3>
             {initialRootCauses.length === 0 ? (
-              <div className="p-6 text-center border border-dashed border-zinc-800 rounded-lg">
-                <p className="text-zinc-500 text-sm">No analysis logged. Ask Rhea in the chat panel to begin investigation.</p>
+              <div className="p-24 text-center border border-dashed border-mist rounded bg-soft-snow/30">
+                <p className="text-slate text-sm">No analysis logged. Ask Rhea in the chat panel to begin investigation.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-[12px]">
                 {initialRootCauses.map((cause) => (
-                  <div key={cause.cause_id} className="border border-zinc-800 bg-zinc-900/20 p-4 rounded-lg space-y-2.5">
+                  <div key={cause.cause_id} className="border border-mist bg-soft-snow p-16 rounded space-y-[10px]">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-zinc-200">{cause.category}</span>
-                      <span className="text-xs font-bold text-purple-400">{Math.round(cause.confidence * 100)}% Confidence</span>
+                      <span className="text-sm font-semibold text-graphite-ink">{cause.category}</span>
+                      <span className="text-xs font-mono font-bold text-iris-violet">{Math.round(cause.confidence * 100)}% Confidence</span>
                     </div>
-                    <p className="text-xs text-zinc-400 leading-relaxed">{cause.description}</p>
-                    <div className="w-full bg-zinc-850 h-1.5 rounded-full overflow-hidden">
+                    <p className="text-xs text-slate leading-relaxed">{cause.description}</p>
+                    <div className="w-full bg-mist h-[6px] rounded-full overflow-hidden">
                       <div 
-                        className="bg-purple-500 h-full rounded-full" 
+                        className="bg-iris-violet h-full rounded-full" 
                         style={{ width: `${cause.confidence * 100}%` }}
                       />
                     </div>
@@ -255,25 +255,25 @@ export function IncidentDetailClient({
 
           {/* Findings */}
           {initialInvestigation?.findings && (
-            <div className="space-y-2 bg-zinc-900/20 border border-zinc-900 rounded-lg p-4">
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Investigation Summary</h3>
-              <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">
+            <div className="space-y-[8px] bg-soft-snow border border-mist rounded p-16">
+              <h3 className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Investigation Summary</h3>
+              <p className="text-xs text-slate leading-relaxed whitespace-pre-line">
                 {initialInvestigation.findings}
               </p>
             </div>
           )}
 
           {/* Remediation Templates */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Available Remediation Templates</h3>
-            <div className="space-y-2">
+          <div className="space-y-[12px]">
+            <h3 className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Available Remediation Templates</h3>
+            <div className="space-y-[8px]">
               {fixPatterns.map((pattern) => (
-                <div key={pattern.pattern_id} className="flex items-center justify-between p-3 rounded-lg border border-zinc-850 bg-zinc-900/10">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-semibold text-zinc-200">{pattern.cause_category}</span>
-                    <span className="text-[10px] text-zinc-500">Success rate: {Math.round(pattern.success_rate * 100)}%</span>
+                <div key={pattern.pattern_id} className="flex items-center justify-between p-[12px] rounded border border-mist bg-soft-snow/50">
+                  <div className="flex flex-col gap-[2px]">
+                    <span className="text-xs font-semibold text-graphite-ink">{pattern.cause_category}</span>
+                    <span className="text-[10px] font-mono text-slate">Success rate: {Math.round(pattern.success_rate * 100)}%</span>
                   </div>
-                  <Badge variant="secondary" className="bg-zinc-800 border-zinc-700 text-zinc-400 text-[10px]">
+                  <Badge variant="secondary" className="bg-paper-white border border-mist text-slate font-mono text-[9px] uppercase tracking-wider px-[6px] py-[2px] rounded">
                     Executable Template
                   </Badge>
                 </div>
@@ -283,40 +283,40 @@ export function IncidentDetailClient({
         </div>
 
         {/* Right Panel: Incident Scoped Agent Chat */}
-        <div className="w-[450px] shrink-0 flex flex-col min-h-0 bg-zinc-950">
-          <header className="h-12 border-b border-zinc-800 px-4 flex items-center justify-between shrink-0 bg-zinc-900/10">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Rhea Investigation Chat</span>
-            <div className="flex items-center gap-1.5">
-              <span className={`size-1.5 rounded-full ${isBusy ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-600'}`} />
-              <span className="text-[10px] font-semibold text-zinc-500 capitalize">{agent.status}</span>
+        <div className="w-[450px] shrink-0 flex flex-col min-h-0 bg-paper-white border-l border-mist">
+          <header className="h-[48px] border-b border-mist px-16 flex items-center justify-between shrink-0 bg-soft-snow">
+            <span className="font-mono text-[10px] font-bold text-slate uppercase tracking-wider">Rhea Investigation Chat</span>
+            <div className="flex items-center gap-[6px]">
+              <span className={`size-[6px] rounded-full ${isBusy ? 'bg-emerald-500 animate-pulse' : 'bg-slate'}`} />
+              <span className="text-[9px] font-mono font-semibold text-slate uppercase tracking-wider">{agent.status}</span>
             </div>
           </header>
 
           {/* Chat message thread */}
           <div className="flex-1 min-h-0 flex flex-col">
             {isEmpty ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-                <div className="p-3 bg-purple-600/10 rounded-full border border-purple-500/20 text-purple-400">
-                  <AlertTriangle className="size-6" />
+              <div className="flex-1 flex flex-col items-center justify-center p-24 text-center gap-16">
+                <div className="p-[12px] bg-iris-violet/5 rounded-full border border-iris-violet/10 text-iris-violet">
+                  <AlertTriangle className="size-[24px]" />
                 </div>
-                <div className="space-y-1 max-w-xs">
-                  <p className="text-sm font-semibold text-white">Start Rhea Investigation</p>
-                  <p className="text-xs text-zinc-500">
+                <div className="space-y-[4px] max-w-xs">
+                  <p className="font-lustria text-sm font-semibold text-graphite-ink">Start Rhea Investigation</p>
+                  <p className="text-xs text-slate mt-[4px]">
                     Ask Rhea to look into this incident. She will inspect servers, query logs, and identify causes.
                   </p>
                 </div>
-                <Button 
+                <button 
                   onClick={() => agent.send({ message: "Investigate this incident." })}
                   disabled={isBusy}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1.5 shadow-lg shadow-purple-500/10"
+                  className="bg-iris-violet hover:bg-iris-violet/90 text-paper-white border border-transparent shadow-sm rounded font-mono text-[11px] uppercase tracking-wider px-[16px] py-[10px] flex items-center gap-[8px] transition-all cursor-pointer select-none"
                 >
-                  {isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                  {isBusy ? <Loader2 className="size-[14px] animate-spin" /> : <Play className="size-[14px]" />}
                   Auto-Investigate
-                </Button>
+                </button>
               </div>
             ) : (
-              <Conversation className="min-h-0 flex-1">
-                <ConversationContent className="px-4 py-4 gap-4">
+              <Conversation className="min-h-0 flex-1 bg-paper-white">
+                <ConversationContent className="px-16 py-16 gap-16">
                   {agent.data.messages.map((message, index) => (
                     <AgentMessage
                       canRespond={!isBusy}
@@ -330,8 +330,8 @@ export function IncidentDetailClient({
                   ))}
                   {isBusy && agent.status === "submitted" && (
                     <Message from="assistant" className="animate-pulse">
-                      <MessageContent className="flex items-center gap-2 text-zinc-500">
-                        <Loader2 className="size-3.5 animate-spin text-purple-400" />
+                      <MessageContent className="flex items-center gap-8 text-slate">
+                        <Loader2 className="size-[14px] animate-spin text-iris-violet" />
                         <span className="text-xs">Rhea is thinking...</span>
                       </MessageContent>
                     </Message>
@@ -343,15 +343,15 @@ export function IncidentDetailClient({
 
             {/* Error banner */}
             {agent.error && (
-              <div className="px-4 pt-2">
-                <div className="p-2.5 rounded-lg border border-red-500/20 bg-red-500/5 text-xs text-red-400 leading-relaxed">
+              <div className="px-16 pt-[8px]">
+                <div className="p-[10px] rounded border border-rose-100 bg-rose-50/50 text-xs text-rose-600 leading-relaxed">
                   Request failed: {agent.error.message}
                 </div>
               </div>
             )}
 
             {/* Input Composer */}
-            <div className="p-4 border-t border-zinc-800 bg-zinc-900/10 shrink-0">
+            <div className="p-16 border-t border-mist bg-soft-snow/30 shrink-0">
               <PromptInput onSubmit={handleSubmitMessage}>
                 <PromptInputTextarea 
                   placeholder={isReadOnly ? "Viewing history (read-only)…" : "Ask Rhea to query logs, check pods..."} 

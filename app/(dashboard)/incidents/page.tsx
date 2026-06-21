@@ -19,10 +19,10 @@ export default async function IncidentsPage() {
   const initialIncidents = res.rows;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">Incidents</h1>
-        <p className="text-zinc-400 text-sm mt-1">
+    <div className="space-y-24 max-w-7xl mx-auto p-24">
+      <div className="space-y-[4px]">
+        <h1 className="font-lustria text-3xl font-bold tracking-tight text-graphite-ink">Incidents</h1>
+        <p className="text-slate text-sm leading-relaxed">
           Monitor and investigate system anomalies, outages, and alerts.
         </p>
       </div>

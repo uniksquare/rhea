@@ -65,126 +65,126 @@ export default async function OverviewPage() {
   const recentIncidents = recentIncidentsRes.rows;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-24 max-w-7xl mx-auto p-24">
       {/* Header */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard Overview</h1>
-          <p className="text-zinc-400 text-sm mt-1">
+      <div className="flex flex-col gap-[12px] md:flex-row md:items-center md:justify-between">
+        <div className="space-y-[4px]">
+          <h1 className="font-lustria text-3xl font-bold tracking-tight text-graphite-ink">Dashboard Overview</h1>
+          <p className="text-slate text-sm leading-relaxed">
             System status and incident response telemetry for your organization.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/incidents">
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white border-0 shadow-lg shadow-purple-500/20 gap-2">
+        <div className="flex items-center gap-[12px]">
+          <Link href="/chat">
+            <button className="bg-iris-violet hover:bg-iris-violet/90 text-paper-white border border-transparent shadow-sm rounded font-mono text-[11px] uppercase tracking-wider px-[16px] py-[10px] flex items-center gap-[8px] transition-all cursor-pointer select-none">
               Report Incident
-              <ArrowUpRight className="size-4" />
-            </Button>
+              <ArrowUpRight className="size-[14px]" />
+            </button>
           </Link>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-16 md:grid-cols-2 lg:grid-cols-4">
         {/* Metric 1 */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Active Incidents</p>
-            <p className="text-3xl font-semibold text-white">{activeCount}</p>
+        <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
+          <div className="space-y-[4px]">
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Active Incidents</p>
+            <p className="text-3xl font-bold text-graphite-ink tracking-tight">{activeCount}</p>
           </div>
-          <div className={`p-3 rounded-lg ${activeCount > 0 ? 'bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse' : 'bg-zinc-800 text-zinc-500'}`}>
-            <AlertTriangle className="size-5" />
+          <div className={`p-[12px] rounded border ${activeCount > 0 ? 'bg-rose-50/50 text-rose-600 border-rose-100 animate-pulse' : 'bg-paper-white text-slate border-mist'}`}>
+            <AlertTriangle className="size-[20px]" />
           </div>
         </div>
 
         {/* Metric 2 */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Mean Time to Resolve</p>
-            <p className="text-3xl font-semibold text-white">{mttr}</p>
+        <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
+          <div className="space-y-[4px]">
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Mean Time to Resolve</p>
+            <p className="text-3xl font-bold text-graphite-ink tracking-tight">{mttr}</p>
           </div>
-          <div className="p-3 rounded-lg bg-zinc-800 text-zinc-400 border border-zinc-700">
-            <Clock className="size-5" />
+          <div className="p-[12px] rounded border bg-paper-white text-slate border-mist">
+            <Clock className="size-[20px]" />
           </div>
         </div>
 
         {/* Metric 3 */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Autonomy Rate</p>
-            <p className="text-3xl font-semibold text-white">{autonomyRate}</p>
+        <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
+          <div className="space-y-[4px]">
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Autonomy Rate</p>
+            <p className="text-3xl font-bold text-graphite-ink tracking-tight">{autonomyRate}</p>
           </div>
-          <div className="p-3 rounded-lg bg-zinc-800 text-purple-400 border border-zinc-700">
-            <Activity className="size-5" />
+          <div className="p-[12px] rounded border bg-paper-white text-iris-violet border-mist">
+            <Activity className="size-[20px]" />
           </div>
         </div>
 
         {/* Metric 4 */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Total Handled</p>
-            <p className="text-3xl font-semibold text-white">{totalCount}</p>
+        <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
+          <div className="space-y-[4px]">
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Total Handled</p>
+            <p className="text-3xl font-bold text-graphite-ink tracking-tight">{totalCount}</p>
           </div>
-          <div className="p-3 rounded-lg bg-zinc-800 text-zinc-400 border border-zinc-700">
-            <CheckCircle2 className="size-5" />
+          <div className="p-[12px] rounded border bg-paper-white text-emerald-600 border-mist">
+            <CheckCircle2 className="size-[20px]" />
           </div>
         </div>
       </div>
 
       {/* Main Grid */}
-      <div className="grid gap-6 md:grid-cols-6">
+      <div className="grid gap-24 md:grid-cols-6">
         {/* Recent Incidents Panel */}
-        <div className="md:col-span-4 rounded-xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-sm p-6 flex flex-col justify-between">
-          <div className="space-y-4">
+        <div className="md:col-span-4 rounded border border-mist bg-paper-white p-24 flex flex-col justify-between shadow-sm">
+          <div className="space-y-16">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Recent Incidents</h2>
-              <Link href="/incidents" className="text-xs font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1">
+              <h2 className="font-lustria text-lg font-semibold text-graphite-ink">Recent Incidents</h2>
+              <Link href="/incidents" className="font-mono text-[11px] uppercase tracking-wider text-iris-violet hover:text-deep-iris flex items-center gap-[4px] transition-colors">
                 View all
-                <ChevronRight className="size-3" />
+                <ChevronRight className="size-[12px]" />
               </Link>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-[12px]">
               {recentIncidents.length === 0 ? (
-                <div className="text-center py-8 border border-dashed border-zinc-800 rounded-lg">
-                  <p className="text-zinc-500 text-sm">No incidents recorded yet.</p>
+                <div className="text-center py-[32px] border border-dashed border-mist rounded bg-soft-snow/50">
+                  <p className="text-slate text-sm">No incidents recorded yet.</p>
                 </div>
               ) : (
                 recentIncidents.map((incident: any) => {
                   const severityColors: any = {
-                    LOW: 'bg-zinc-800 text-zinc-400 border-zinc-700',
-                    MEDIUM: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-                    HIGH: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-                    CRITICAL: 'bg-red-500/10 text-red-400 border-red-500/20',
+                    LOW: 'bg-slate/5 text-slate border-slate/15',
+                    MEDIUM: 'bg-amber-50 text-amber-700 border-amber-200',
+                    HIGH: 'bg-orange-50 text-orange-700 border-orange-200',
+                    CRITICAL: 'bg-rose-50 text-rose-700 border-rose-200',
                   };
                   const statusColors: any = {
-                    ACTIVE: 'bg-red-500/10 text-red-400 border-red-500/20',
-                    INVESTIGATING: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-                    RESOLVED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                    ACTIVE: 'bg-rose-50 text-rose-700 border-rose-200',
+                    INVESTIGATING: 'bg-iris-violet/5 text-iris-violet border-iris-violet/15',
+                    RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
                   };
 
                   return (
                     <Link
                       key={incident.incident_id}
                       href={`/incidents/${incident.incident_id}`}
-                      className="flex items-center justify-between p-3.5 rounded-lg border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-800/40 hover:border-zinc-700 transition-all group"
+                      className="flex items-center justify-between p-[14px] rounded border border-mist bg-soft-snow/30 hover:bg-soft-snow/70 hover:border-slate/30 transition-all group"
                     >
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors truncate">
+                      <div className="flex flex-col gap-[2px] min-w-0">
+                        <span className="text-sm font-medium text-graphite-ink group-hover:text-iris-violet transition-colors truncate">
                           {incident.title}
                         </span>
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-[10px] font-mono text-slate/80">
                           {new Date(incident.created_at).toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${severityColors[incident.severity]}`}>
+                      <div className="flex items-center gap-[8px] shrink-0">
+                        <span className={`px-[8px] py-[2px] rounded-[100px] text-[9px] font-mono uppercase tracking-wider border leading-none font-semibold ${severityColors[incident.severity]}`}>
                           {incident.severity}
                         </span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${statusColors[incident.status]}`}>
+                        <span className={`px-[8px] py-[2px] rounded-[100px] text-[9px] font-mono uppercase tracking-wider border leading-none font-semibold ${statusColors[incident.status]}`}>
                           {incident.status}
                         </span>
-                        <ChevronRight className="size-4 text-zinc-600 group-hover:text-zinc-400 transition-colors ml-1" />
+                        <ChevronRight className="size-[16px] text-slate/40 group-hover:text-iris-violet transition-colors ml-[4px]" />
                       </div>
                     </Link>
                   );
@@ -195,44 +195,44 @@ export default async function OverviewPage() {
         </div>
 
         {/* Agent Telemetry Panel */}
-        <div className="md:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-sm p-6 flex flex-col justify-between">
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-white">Rhea Copilot</h2>
+        <div className="md:col-span-2 rounded border border-mist bg-paper-white p-24 flex flex-col justify-between shadow-sm">
+          <div className="space-y-[16px]">
+            <h2 className="font-lustria text-lg font-semibold text-graphite-ink">Rhea Copilot</h2>
 
-            <div className="border border-zinc-800 bg-zinc-950 p-4 rounded-lg flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-0.5">
-                <Activity className="size-4 animate-pulse" />
+            <div className="border border-mist bg-soft-snow p-16 rounded flex items-start gap-[12px]">
+              <div className="p-[8px] rounded border border-emerald-200 bg-emerald-50 text-emerald-600 mt-[2px] shrink-0">
+                <Activity className="size-[16px] animate-pulse" />
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-zinc-200">Agent Status</p>
-                <p className="text-xs text-emerald-400 font-semibold">Active & Monitoring</p>
-                <p className="text-xs text-zinc-500 mt-1">
+              <div className="space-y-[4px]">
+                <p className="text-sm font-semibold text-graphite-ink">Agent Status</p>
+                <p className="text-xs text-emerald-600 font-semibold">Active & Monitoring</p>
+                <p className="text-xs text-slate mt-[4px] leading-relaxed">
                   Ready to trigger investigations or run automated sandboxes.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2 text-xs text-zinc-400">
-              <div className="flex justify-between border-b border-zinc-800 pb-2">
+            <div className="space-y-[12px] text-xs text-slate font-sans">
+              <div className="flex justify-between border-b border-mist pb-[8px]">
                 <span>Active Channels</span>
-                <span className="text-zinc-200 font-medium">Web Chat, Local Dev</span>
+                <span className="text-graphite-ink font-medium">Web Chat, Local Dev</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-2">
+              <div className="flex justify-between border-b border-mist pb-[8px]">
                 <span>Active Integrations</span>
-                <span className="text-zinc-200 font-medium">Aurora DSQL, DynamoDB</span>
+                <span className="text-graphite-ink font-medium">Aurora DSQL, DynamoDB</span>
               </div>
-              <div className="flex justify-between pb-1">
+              <div className="flex justify-between pb-[4px]">
                 <span>Remediation Library</span>
-                <span className="text-zinc-200 font-medium">3 active templates</span>
+                <span className="text-graphite-ink font-medium">3 active templates</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-zinc-800">
-            <Link href="/" className="w-full block">
-              <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 hover:text-white">
+          <div className="mt-24 pt-16 border-t border-mist">
+            <Link href="/chat" className="w-full block">
+              <button className="w-full bg-paper-white hover:bg-soft-snow text-graphite-ink border border-mist hover:border-slate/40 rounded py-[10px] font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer shadow-sm select-none text-center block">
                 Launch General Chat
-              </Button>
+              </button>
             </Link>
           </div>
         </div>
