@@ -148,6 +148,7 @@ export function LandingClient() {
   // Transition the step video source with a fade-out / fade-in effect
   useEffect(() => {
     setIsStepFading(true);
+    setStepProgress(0);
     const timer = setTimeout(() => {
       setDisplayStep(activeStep);
       setIsStepFading(false);
@@ -160,25 +161,23 @@ export function LandingClient() {
     const video = stepVideoRef.current;
     if (!video) return;
 
-    if (displayStep !== 3) {
-      video.load();
-      video.muted = isVolumeMuted;
+    video.load();
+    video.muted = isVolumeMuted;
 
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn("Autoplay with audio prevented. Retrying muted...", err);
-          video.muted = true;
-          video.play().catch(e => console.error("Muted playback failed too:", e));
-        });
-      }
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn("Autoplay with audio prevented. Retrying muted...", err);
+        video.muted = true;
+        video.play().catch(e => console.error("Muted playback failed too:", e));
+      });
     }
   }, [displayStep, isVolumeMuted]);
 
   // Track active video time updates for progress bar sync
   useEffect(() => {
     const video = stepVideoRef.current;
-    if (!video || displayStep === 3) return;
+    if (!video) return;
 
     const handleTimeUpdate = () => {
       if (video.duration) {
@@ -191,37 +190,6 @@ export function LandingClient() {
       video.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, [displayStep]);
-
-  // Step 3 (blank/background-only) progress counter and auto-advance loop timer
-  useEffect(() => {
-    if (activeStep === 3) {
-      setStepProgress(0);
-      const intervalTime = 100;
-      const totalTime = 6000;
-      const increment = (intervalTime / totalTime) * 100;
-
-      const progressTimer = setInterval(() => {
-        setStepProgress((prev) => {
-          const next = prev + increment;
-          return next >= 100 ? 100 : next;
-        });
-      }, intervalTime);
-
-      let loopTimer: NodeJS.Timeout | undefined;
-      if (autoPlayEnabled) {
-        loopTimer = setTimeout(() => {
-          setAutoPlayEnabled(false);
-        }, totalTime);
-      }
-
-      return () => {
-        clearInterval(progressTimer);
-        if (loopTimer) clearTimeout(loopTimer);
-      };
-    } else {
-      setStepProgress(0);
-    }
-  }, [activeStep, autoPlayEnabled]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -737,34 +705,26 @@ export function LandingClient() {
                   <div className={`w-full h-full min-h-[300px] sm:min-h-[350px] border border-mist rounded bg-paper-white relative overflow-hidden transition-all duration-300 shadow-sm flex items-center justify-center ${isStepFading ? "opacity-0 scale-98" : "opacity-100 scale-100"
                     }`}>
 
-                    {displayStep === 3 ? (
-                      /* Step 3: Blank background with color and glowing branding */
-                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-iris-violet text-paper-white p-32 select-none">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_0%,transparent_70%)]" />
-                        <StarburstIcon className="size-48 text-paper-white animate-pulse" />
-                        <h4 className="font-lustria text-xl sm:text-2xl mt-16 text-center tracking-tight">Autonomous Remediation Active</h4>
-                        <p className="font-mono text-[9px] text-powder-blue mt-6 tracking-wider uppercase bg-deep-iris/30 border border-powder-blue/20 px-8 py-[2px] rounded-full">SIT BACK AND RELAX</p>
-                      </div>
-                    ) : (
-                      /* Step 1 & 2: Video players */
-                      <div className="w-full h-full relative flex items-center justify-center bg-soft-snow overflow-hidden">
-                        <video
-                          ref={stepVideoRef}
-                          src={displayStep === 1 ? "/step1.mp4" : "/step2.mp4"}
-                          className="w-full h-full object-cover rounded bg-soft-snow [mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)]"
-                          playsInline
-                          muted
-                          loop={!autoPlayEnabled}
-                          onEnded={() => {
-                            if (autoPlayEnabled) {
-                              if (activeStep < 3) {
-                                setActiveStep((prev) => (prev + 1) as 1 | 2 | 3);
-                              }
+                    {/* Steps 1, 2 & 3: Video players */}
+                    <div className="w-full h-full relative flex items-center justify-center bg-soft-snow overflow-hidden">
+                      <video
+                        ref={stepVideoRef}
+                        src={displayStep === 1 ? "/step1.mp4" : displayStep === 2 ? "/step2.mp4" : "/step3.mp4"}
+                        className="w-full h-full object-cover rounded bg-soft-snow [mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,black_15%,black_85%,transparent_100%)]"
+                        playsInline
+                        muted
+                        loop={!autoPlayEnabled}
+                        onEnded={() => {
+                          if (autoPlayEnabled) {
+                            if (activeStep < 3) {
+                              setActiveStep((prev) => (prev + 1) as 1 | 2 | 3);
+                            } else {
+                              setAutoPlayEnabled(false);
                             }
-                          }}
-                        />
-                      </div>
-                    )}
+                          }
+                        }}
+                      />
+                    </div>
 
                   </div>
                 </div>
@@ -971,18 +931,18 @@ export function LandingClient() {
             <div className="w-full h-16 border-b border-mist diagonal-stripes-bg z-10" />
 
             {/* Redesigned Footer Section inside the main container */}
-            <footer className="w-full bg-paper-white px-16 sm:px-32 py-48 md:py-64 z-10 relative overflow-hidden">
+            <footer className="w-full bg-paper-white px-16 sm:px-32 pt-48 pb-[200px] md:pt-64 md:pb-[300px] z-10 relative overflow-hidden">
 
-              {/* Background Image (footer.jpeg) with fade from upward & cache bypass */}
+               {/* Background Image (footer.jpeg) with fade from upward & cache bypass */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/footer.jpeg?v=1"
                 alt="Footer background illustration"
-                className="absolute inset-0 w-full h-full object-cover object-bottom select-none pointer-events-none opacity-30 z-0"
+                className="absolute bottom-0 left-0 right-0 w-full h-[200px] md:h-[300px] object-cover object-bottom select-none pointer-events-none opacity-85 z-0 [mask-image:linear-gradient(to_bottom,transparent_0%,black_100%)]"
               />
 
               {/* White fade from upward gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-b from-paper-white via-paper-white/85 to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-b from-paper-white via-paper-white/20 to-transparent z-10 pointer-events-none" />
 
               <div className="relative z-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-32 md:gap-48 items-start">
 
