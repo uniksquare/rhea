@@ -60,10 +60,10 @@ export default async function ConnectorsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto py-12 px-6">
-      <div className="space-y-1.5">
-        <h1 className="text-3xl font-bold tracking-tight text-white font-sans">Integrations & Connectors</h1>
-        <p className="text-zinc-400 text-sm leading-relaxed max-w-2xl">
+    <div className="space-y-24 max-w-7xl mx-auto p-24">
+      <div className="space-y-[4px]">
+        <h1 className="font-lustria text-3xl font-bold tracking-tight text-graphite-ink">Integrations & Connectors</h1>
+        <p className="text-slate text-sm leading-relaxed max-w-2xl">
           Connect your incident response workspace to Datadog, Prometheus, Slack, and GitHub. Rhea subagents consume these channels to auto-investigate alerts and apply remedies safely.
         </p>
       </div>
