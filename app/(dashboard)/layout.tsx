@@ -2,16 +2,8 @@ import type { ReactNode } from "react";
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { 
-  LayoutGrid, 
-  AlertCircle, 
-  MessageSquare, 
-  Users, 
-  Settings,
-  Shield,
-  LogOut,
-  Plug
-} from "lucide-react";
+import { LogOut } from "lucide-react";
+import { DashboardSidebar } from "@/app/_components/dashboard-sidebar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -33,22 +25,12 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect("/auth/signin");
   }
 
-  const navItems = [
-    { name: "Agent Chat", href: "/chat", icon: MessageSquare },
-    { name: "Overview", href: "/overview", icon: LayoutGrid },
-    { name: "Incidents", href: "/incidents", icon: AlertCircle },
-    { name: "Integrations", href: "/connectors", icon: Plug },
-    { name: "Sandbox Security", href: "/sandbox", icon: Shield },
-    { name: "Team & Keys", href: "/team", icon: Users },
-    { name: "Settings", href: "/settings", icon: Settings },
-  ];
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-paper-white text-graphite-ink font-sans">
       
       {/* Sidebar */}
       <aside className="w-[260px] shrink-0 border-r border-mist bg-soft-snow flex flex-col justify-between">
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           
           {/* Brand Header */}
           <div className="h-[64px] flex items-center px-16 gap-8 border-b border-mist shrink-0">
@@ -61,22 +43,8 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             </span>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-16 space-y-8">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-[12px] px-[12px] py-8 rounded border border-transparent font-sans text-[13px] font-medium text-slate hover:text-graphite-ink hover:bg-paper-white hover:border-mist transition-all group"
-                >
-                  <Icon className="size-16 shrink-0 text-fog group-hover:text-iris-violet transition-colors" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Dynamic Navigation & History */}
+          <DashboardSidebar userRole={session.user.role} />
         </div>
 
         {/* User profile section at the bottom */}

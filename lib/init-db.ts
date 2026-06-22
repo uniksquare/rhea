@@ -156,6 +156,14 @@ async function run() {
         execution_time_ms INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+    `CREATE TABLE IF NOT EXISTS agent_chats (
+        chat_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        org_id UUID NOT NULL,
+        title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+        agent_session_state JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
 
     // ── Alters for pre-existing tables to ensure columns exist ──
     `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS org_id UUID;`,

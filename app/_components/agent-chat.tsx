@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEveAgent } from "eve/react";
-import { AlertCircleIcon, Loader2, Sparkles } from "lucide-react";
+import { AlertCircleIcon, Loader2 } from "lucide-react";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
   Conversation,
@@ -18,8 +18,6 @@ import {
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 
-const AGENT_NAME = "rhea";
-const BETA_TERMS_HREF = "https://vercel.com/docs/release-phases/public-beta-agreement";
 const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPoQumYH3A-U6iG2g';
 
 type AgentStatus = ReturnType<typeof useEveAgent>["status"];
@@ -33,15 +31,124 @@ function StarburstIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export function AgentChat() {
-  const agent = useEveAgent();
+export function AgentChat({ chatId }: { chatId: string | null }) {
+  const [initialSession, setInitialSession] = useState<any>(undefined);
+  const [loading, setLoading] = useState(!!chatId);
+
+  useEffect(() => {
+    if (!chatId) {
+      setInitialSession(undefined);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    fetch(`/api/chats/${chatId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load chat session");
+        return res.json();
+      })
+      .then((data) => {
+        if (active) {
+          setInitialSession(data.agent_session_state || undefined);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load chat:", err);
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [chatId]);
+
+  if (loading) {
+    return (
+      <div className="flex-grow flex items-center justify-center bg-paper-white h-full w-full">
+        <div className="flex flex-col items-center gap-12 text-slate text-sm font-sans">
+          <Loader2 className="size-24 animate-spin text-iris-violet" />
+          <span>Retrieving chat session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return <AgentChatInner chatId={chatId} initialSession={initialSession} />;
+}
+
+function AgentChatInner({ chatId, initialSession }: { chatId: string | null; initialSession: any }) {
+  const [currentChatId, setCurrentChatId] = useState(chatId);
+  const isCreatingChatRef = useRef(false);
+
+  const agent = useEveAgent({
+    initialSession,
+    async onSessionChange(newSessionState) {
+      if (currentChatId) {
+        try {
+          await fetch(`/api/chats/${currentChatId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agent_session_state: newSessionState }),
+          });
+        } catch (err) {
+          console.error("Failed to save session state:", err);
+        }
+      } else if (!isCreatingChatRef.current) {
+        isCreatingChatRef.current = true;
+        try {
+          // Extract user's first message as title
+          const firstMessage = agent.data.messages.find((m) => m.role === "user");
+          let title = "New Chat";
+          if (firstMessage) {
+            const textPart = firstMessage.parts.find((p) => p.type === "text");
+            if (textPart && "text" in textPart) {
+              const text = textPart.text.trim();
+              title = text.slice(0, 40) + (text.length > 40 ? "..." : "");
+            }
+          }
+
+          const res = await fetch("/api/chats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title,
+              agent_session_state: newSessionState,
+            }),
+          });
+
+          if (res.ok) {
+            const newChat = await res.json();
+            setCurrentChatId(newChat.chat_id);
+
+            // Update browser URL without triggering React re-mount
+            const newUrl = `${window.location.pathname}?id=${newChat.chat_id}`;
+            window.history.replaceState(
+              { ...window.history.state, as: newUrl, url: newUrl },
+              "",
+              newUrl
+            );
+
+            // Refresh sidebar list
+            window.dispatchEvent(new Event("chats-updated"));
+          }
+        } catch (err) {
+          console.error("Failed to auto-create chat in database:", err);
+        } finally {
+          isCreatingChatRef.current = false;
+        }
+      }
+    },
+  });
+
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isEmpty = agent.data.messages.length === 0;
 
-  const thinkingStates = [
-    "thinking...",
-    "wandering...",
-  ];
+  const thinkingStates = ["thinking...", "wandering..."];
   const [thinkingIndex, setThinkingIndex] = useState(0);
 
   useEffect(() => {
@@ -95,7 +202,7 @@ export function AgentChat() {
       <div className="flex flex-col w-full bg-white rounded-[21px] p-12 gap-8">
         <PromptInputTextarea
           placeholder="Ask Rhea anything..."
-          className="w-full bg-transparent resize-none border-0 outline-none placeholder-slate/50 text-graphite-ink font-sans text-[15px] px-8 py-4 field-sizing-content max-h-48 min-h-[48px] focus:ring-0 focus-visible:ring-0 focus-visible:outline-none"
+          className="w-full bg-transparent resize-none border-0 outline-none placeholder-slate/50 text-graphite-ink font-sans text-[15px] px-8 py-4 field-sizing-content !max-h-[160px] min-h-[48px] focus:ring-0 focus-visible:ring-0 focus-visible:outline-none overflow-hidden"
         />
 
         <div className="flex items-center justify-end px-8">
@@ -130,7 +237,7 @@ export function AgentChat() {
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between p-24 sm:p-32 max-w-5xl mx-auto w-full">
         {/* Upper/Welcome Section */}
         {isEmpty ? (
-          <div className="w-full flex-1 flex flex-col justify-center gap-32">
+          <div className="w-full flex-1 flex flex-col justify-center pb-[140px] gap-32">
             <div className="flex flex-col gap-24 items-start text-left py-24 select-none w-full animate-in fade-in duration-500">
               <div className="space-y-16">
                 <div className="flex items-center gap-12 flex-wrap">
