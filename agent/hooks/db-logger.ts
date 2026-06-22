@@ -1,5 +1,5 @@
 import { defineHook } from "eve/hooks";
-import { putItem, updateItem } from "../../lib/dynamodb.js";
+import { putItem, updateItem } from "../../lib/dynamodb.ts";
 
 export default defineHook({
   events: {

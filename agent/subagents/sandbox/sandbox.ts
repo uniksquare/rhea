@@ -1,7 +1,7 @@
 import { defineSandbox } from "eve/sandbox";
 import { vercel } from "eve/sandbox/vercel";
-import { queryDsql } from "../../../lib/dsql";
-import { decrypt } from "../../../lib/crypto";
+import { queryDsql } from "../../../lib/dsql.ts";
+import { decrypt } from "../../../lib/crypto.ts";
 
 export default defineSandbox({
   backend: vercel({

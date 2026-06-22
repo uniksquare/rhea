@@ -1,40 +1,33 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { queryDsql } from "../../lib/dsql.js";
+import { queryDsql } from "../../lib/dsql.ts";
 
 export default defineTool({
   description: "Manage incidents, investigations, and root causes inside the Aurora DSQL relational memory store.",
-  inputSchema: z.discriminatedUnion("action", [
-    z.object({
-      action: z.literal("create_incident"),
-      title: z.string().describe("Brief title of the incident"),
-      description: z.string().describe("Detailed description of the incident/alert"),
-      severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).describe("Severity level"),
-    }),
-    z.object({
-      action: z.literal("update_incident_status"),
-      incident_id: z.string().uuid().describe("The UUID of the incident"),
-      status: z.enum(["ACTIVE", "RESOLVED"]).describe("New status"),
-    }),
-    z.object({
-      action: z.literal("log_investigation"),
-      incident_id: z.string().uuid().describe("The UUID of the incident"),
-      findings: z.string().describe("Text findings of the investigation"),
-      ranked_causes: z.array(
-        z.object({
-          category: z.string(),
-          confidence: z.number(),
-          description: z.string(),
-        })
-      ).describe("JSON array of identified potential root causes"),
-    }),
-    z.object({
-      action: z.literal("log_fix_pattern"),
-      cause_category: z.string().describe("Category of the cause (e.g. DATABASE, DEPLOYMENT, KUBERNETES)"),
-      remediation_template: z.string().describe("The command, code or config pattern used to resolve the issue"),
-      success_rate: z.number().min(0).max(1).describe("The historical success rate metric"),
-    }),
-  ]),
+  inputSchema: z.object({
+    action: z.enum([
+      "create_incident",
+      "update_incident_status",
+      "log_investigation",
+      "log_fix_pattern"
+    ]).describe("The action to perform"),
+    title: z.string().optional().describe("Brief title of the incident (required for create_incident)"),
+    description: z.string().optional().describe("Detailed description of the incident/alert (required for create_incident)"),
+    severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().describe("Severity level (required for create_incident)"),
+    incident_id: z.string().uuid().optional().describe("The UUID of the incident (required for update_incident_status and log_investigation)"),
+    status: z.enum(["ACTIVE", "RESOLVED"]).optional().describe("New status (required for update_incident_status)"),
+    findings: z.string().optional().describe("Text findings of the investigation (required for log_investigation)"),
+    ranked_causes: z.array(
+      z.object({
+        category: z.string(),
+        confidence: z.number(),
+        description: z.string(),
+      })
+    ).optional().describe("JSON array of identified potential root causes (required for log_investigation)"),
+    cause_category: z.string().optional().describe("Category of the cause (required for log_fix_pattern)"),
+    remediation_template: z.string().optional().describe("The command, code or config pattern used to resolve the issue (required for log_fix_pattern)"),
+    success_rate: z.number().min(0).max(1).optional().describe("The historical success rate metric (required for log_fix_pattern)"),
+  }),
   async execute(input, ctx) {
     try {
       // Extract org_id from the authenticated session

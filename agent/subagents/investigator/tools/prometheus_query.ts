@@ -1,7 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { queryDsql } from "../../../../lib/dsql.js";
-import { decrypt } from "../../../../lib/crypto.js";
+import { queryDsql } from "../../../../lib/dsql.ts";
+import { decrypt } from "../../../../lib/crypto.ts";
 
 export default defineTool({
   description: "Execute PromQL metric queries against the configured Prometheus server.",

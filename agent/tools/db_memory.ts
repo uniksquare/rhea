@@ -1,19 +1,14 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { queryDsql } from "../../lib/dsql.js";
+import { queryDsql } from "../../lib/dsql.ts";
 
 export default defineTool({
   description: "Retrieve past incidents, root causes, and successful remediation patterns from DSQL long-term memory.",
-  inputSchema: z.discriminatedUnion("action", [
-    z.object({
-      action: z.literal("get_similar_incidents"),
-      keyword: z.string().optional().describe("Keyword to match in incident title or description"),
-    }),
-    z.object({
-      action: z.literal("get_remediation_patterns"),
-      category: z.string().describe("Cause category to retrieve remediation templates for (e.g. DATABASE, DEPLOYMENT)"),
-    }),
-  ]),
+  inputSchema: z.object({
+    action: z.enum(["get_similar_incidents", "get_remediation_patterns"]).describe("The action to perform"),
+    keyword: z.string().optional().describe("Keyword to match in incident title or description (optional for get_similar_incidents)"),
+    category: z.string().optional().describe("Cause category to retrieve remediation templates for (required for get_remediation_patterns)"),
+  }),
   async execute(input, ctx) {
     try {
       // Extract org_id from the authenticated session

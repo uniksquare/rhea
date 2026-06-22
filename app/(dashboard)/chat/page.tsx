@@ -1,4 +1,11 @@
-import { AgentChat } from "@/app/_components/agent-chat";
+"use client";
+
+import dynamic from "next/dynamic";
+
+const AgentChat = dynamic(
+  () => import("@/app/_components/agent-chat").then((mod) => mod.AgentChat),
+  { ssr: false }
+);
 
 export default function ChatPage() {
   return (
