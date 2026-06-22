@@ -27,11 +27,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-paper-white text-graphite-ink font-sans">
-      
+
       {/* Sidebar */}
       <aside className="w-[260px] shrink-0 border-r border-mist bg-soft-snow flex flex-col justify-between">
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          
+
           {/* Brand Header */}
           <div className="h-[64px] flex items-center px-16 gap-8 border-b border-mist shrink-0">
             <div className="flex items-center justify-center size-24 rounded bg-iris-violet text-paper-white shadow-sm">
@@ -39,7 +39,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             </div>
             <span className="font-lustria font-bold text-base tracking-tight text-graphite-ink leading-none">rhea</span>
             <span className="text-[9px] uppercase font-mono tracking-wider px-[6px] py-[2px] rounded bg-paper-white text-slate border border-mist ml-auto leading-none select-none">
-              COCKPIT
+              Platform
             </span>
           </div>
 

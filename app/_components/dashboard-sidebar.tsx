@@ -190,16 +190,23 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
 
               if (item.onClick) {
                 return (
-                  <button
+                  <Link
                     key={item.name}
+                    href={item.href}
                     onClick={item.onClick}
-                    className="w-full flex items-center px-[12px] h-32 rounded border border-transparent font-sans text-[13px] font-medium text-slate hover:text-graphite-ink hover:bg-paper-white hover:border-mist transition-all group cursor-pointer text-left"
+                    className={cn(
+                      "flex items-center gap-[12px] px-[12px] h-32 rounded border font-sans text-[14px] font-medium transition-all group",
+                      isActive
+                        ? "bg-paper-white border-mist text-graphite-ink shadow-2xs"
+                        : "border-transparent text-slate hover:text-graphite-ink hover:bg-paper-white hover:border-mist"
+                    )}
                   >
-                    <div className="flex items-center gap-[12px]">
-                      <Icon className="size-16 shrink-0 text-fog group-hover:text-iris-violet transition-colors" />
-                      <span>{item.name}</span>
-                    </div>
-                  </button>
+                    <Icon className={cn(
+                      "size-16 shrink-0 transition-colors",
+                      isActive ? "text-iris-violet" : "text-fog group-hover:text-iris-violet"
+                    )} />
+                    <span>{item.name}</span>
+                  </Link>
                 );
               }
 
@@ -208,7 +215,7 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-[12px] px-[12px] h-32 rounded border font-sans text-[13px] font-medium transition-all group",
+                    "flex items-center gap-[12px] px-[12px] h-32 rounded border font-sans text-[14px] font-medium transition-all group",
                     isActive
                       ? "bg-paper-white border-mist text-graphite-ink shadow-2xs"
                       : "border-transparent text-slate hover:text-graphite-ink hover:bg-paper-white hover:border-mist"
@@ -228,7 +235,7 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
         {/* Pane B: Chat History List */}
         <div
           className={cn(
-            "absolute inset-0 p-16 flex flex-col transition-all duration-300 ease-in-out",
+            "absolute inset-0 pl-16 pr-8 py-16 flex flex-col transition-all duration-300 ease-in-out",
             view === "history"
               ? "translate-x-0 opacity-100"
               : "translate-x-full opacity-0 pointer-events-none"
@@ -249,7 +256,7 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
           </div>
 
           {/* List content */}
-          <div className="flex-1 overflow-y-auto space-y-8 pr-4 min-h-0 select-none">
+          <div className="flex-1 overflow-y-auto scrollbar-minimal space-y-8 pr-[2px] min-h-0 select-none">
             {isLoadingChats && chats.length === 0 ? (
               <div className="flex items-center justify-center py-32 text-slate text-xs gap-8">
                 <Loader2 className="size-14 animate-spin text-iris-violet" />
@@ -268,10 +275,10 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
                   <div
                     key={chat.chat_id}
                     className={cn(
-                      "group relative flex items-center justify-between rounded border transition-all text-[13px] font-medium font-sans cursor-pointer h-32",
+                      "group relative flex items-center justify-between rounded border transition-all text-[13px] font-medium font-sans cursor-pointer h-32 overflow-hidden",
                       isActive
                         ? "bg-paper-white border-mist text-graphite-ink shadow-2xs"
-                        : "border-transparent text-slate hover:text-graphite-ink hover:bg-paper-white/50 hover:border-mist/50"
+                        : "border-transparent text-slate hover:text-graphite-ink hover:bg-paper-white hover:border-mist"
                     )}
                     onClick={() => {
                       if (!isEditing) {
@@ -290,7 +297,7 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
                             if (e.key === "Enter") submitRename(chat.chat_id);
                             if (e.key === "Escape") setEditingChatId(null);
                           }}
-                          className="flex-1 bg-white border border-mist rounded px-8 h-24 text-xs font-sans text-graphite-ink focus:outline-hidden focus:border-iris-violet min-w-0"
+                          className="flex-1 bg-white border border-mist rounded px-8 h-24 text-[13px] font-sans text-graphite-ink focus:outline-hidden focus:border-iris-violet min-w-0"
                         />
                         <button
                           onClick={() => submitRename(chat.chat_id)}
@@ -307,31 +314,31 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-[10px] px-[12px] h-full min-w-0 flex-1">
+                        <div className="flex items-center gap-[10px] pl-[12px] pr-[12px] group-hover:pr-[80px] h-full min-w-0 flex-1 transition-all duration-200">
                           <MessageSquare className={cn(
                             "size-[14px] shrink-0",
                             isActive ? "text-iris-violet" : "text-fog"
                           )} />
-                          <span className="truncate pr-16" title={chat.title}>
+                          <span className="truncate text-[13px]" title={chat.title}>
                             {chat.title}
                           </span>
                         </div>
 
                         {/* Action buttons (Rename & Delete) */}
-                        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-paper-white via-paper-white to-transparent pl-16 py-4">
+                        <div className="absolute right-[1px] top-[1px] bottom-[1px] flex items-center gap-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity bg-gradient-to-l from-paper-white via-paper-white via-80% to-transparent pl-16 pr-8 rounded-r-[3px]">
                           <button
                             onClick={(e) => startRename(e, chat)}
                             className="p-4 hover:bg-soft-snow rounded text-slate hover:text-graphite-ink cursor-pointer"
                             title="Rename chat"
                           >
-                            <Edit2 className="size-12" />
+                            <Edit2 className="size-[14px]" />
                           </button>
                           <button
                             onClick={(e) => handleDelete(e, chat.chat_id)}
-                            className="p-4 hover:bg-soft-snow rounded text-slate hover:text-destructive cursor-pointer"
+                            className="p-2 hover:bg-white rounded text-slate hover:text-rose-600 cursor-pointer"
                             title="Delete chat"
                           >
-                            <Trash2 className="size-12" />
+                            <Trash2 className="size-[14px]" />
                           </button>
                         </div>
                       </>
