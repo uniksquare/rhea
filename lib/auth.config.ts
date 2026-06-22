@@ -34,8 +34,8 @@ export const authConfig: NextAuthConfig = {
 
       if (isPublicPath) return true;
 
-      // Eve health endpoint is always public
-      if (nextUrl.pathname === "/eve/v1/health") return true;
+      // Allow Eve proxy routes through middleware; we will handle auth inside the route handler
+      if (nextUrl.pathname.startsWith("/eve/v1/")) return true;
 
       // Everything else requires authentication
       return isLoggedIn;

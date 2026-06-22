@@ -325,6 +325,7 @@ export function IncidentDetailClient({
                       }
                       key={message.id}
                       message={message}
+                      events={agent.events}
                       onInputResponses={(inputResponses) => agent.send({ inputResponses })}
                     />
                   ))}

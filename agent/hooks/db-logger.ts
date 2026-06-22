@@ -95,14 +95,16 @@ export default defineHook({
 
           case "subagent.called":
             await putItem("AgentTasks", {
-              task_id: event.data.childSessionId,
+              task_id: event.data.callId,
               parent_id: ctx.session.id,
               name: event.data.name,
               status: "RUNNING",
               assigned_to: event.data.name,
+              child_session_id: event.data.childSessionId,
               payload: {
                 toolName: event.data.toolName,
                 callId: event.data.callId,
+                childSessionId: event.data.childSessionId,
               },
               created_at: at
             });

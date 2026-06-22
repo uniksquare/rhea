@@ -173,7 +173,7 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
   const composer = (
     <PromptInput
       onSubmit={handleSubmit}
-      className="w-full !h-auto !flex-col !items-stretch bg-iris-violet/15 p-[3px] pt-[26px] rounded-[24px] border !border-iris-violet/15 !ring-0 shadow-[0_0_15px_rgba(116,81,242,0.15)] focus-within:shadow-[0_0_20px_rgba(116,81,242,0.3)] transition-all duration-200 relative"
+      className="w-full !h-auto !flex-col !items-stretch bg-[#eae5fd] p-[3px] pt-[26px] rounded-[24px] border !border-[#dcd3fc] !ring-0 shadow-[0_0_15px_rgba(116,81,242,0.15)] focus-within:shadow-[0_0_20px_rgba(116,81,242,0.3)] transition-all duration-200 relative"
     >
       {/* Header Model / Status Info */}
       <div className="absolute top-[6px] left-[16px] flex items-center gap-[4px] select-none">
@@ -217,63 +217,61 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
       {/* Background decoration grid */}
       {isEmpty && <div className="absolute inset-0 dotted-grid-bg opacity-[0.12] pointer-events-none" />}
 
-      {agent.error ? (
-        <div className="mx-auto w-full max-w-5xl shrink-0 px-24 pt-16 z-20">
-          <div className="flex items-start gap-[12px] rounded-[4px] border border-destructive/20 bg-rose-50/50 p-16 text-sm">
-            <AlertCircleIcon className="mt-[2px] size-16 shrink-0 text-destructive" />
-            <div>
-              <p className="font-semibold text-graphite-ink">Request failed</p>
-              <p className="mt-[4px] text-slate">{agent.error.message}</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Main Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between p-24 sm:p-32 max-w-5xl mx-auto w-full">
-        {/* Upper/Welcome Section */}
-        {isEmpty ? (
-          <div className="w-full flex-1 flex flex-col justify-center pb-[140px] gap-32">
-            <div className="flex flex-col gap-24 items-start text-left py-24 select-none w-full animate-in fade-in duration-500">
-              <div className="space-y-16">
-                <div className="flex items-center gap-12 flex-wrap">
-                  <h1 className="font-lustria text-4xl sm:text-5.5xl font-normal tracking-[-2px] text-graphite-ink leading-none">
-                    hi I'm rhea
-                  </h1>
-                  <div className="flex items-center justify-center size-36 sm:size-40 rounded bg-iris-violet text-paper-white shadow-sm select-none animate-pulse">
-                    <StarburstIcon className="size-18 sm:size-20" />
-                  </div>
-                </div>
-                <p className="text-slate text-[15px] leading-relaxed max-w-xl">
-                  Your autonomous DevOps incident copilot. Ask Rhea to inspect clusters, diagnose errors, or plan hotfixes with rhea subagents.
-                </p>
-
-                {/* Square Agent Avatars */}
-                <div className="flex items-center gap-8 select-none flex-wrap pt-8">
-                  {[
-                    { src: "/planner.jpeg", name: "Planner" },
-                    { src: "/investigator.jpeg", name: "Investigator" },
-                    { src: "/sandbox.jpeg", name: "Sandbox" },
-                    { src: "/remediation.jpeg", name: "Remediation" },
-                    { src: "/approval.jpeg", name: "Approver" }
-                  ].map((avatar, idx) => (
-                    <div key={idx} className="relative group hover:scale-[1.03] transition-all duration-200" title={avatar.name}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={avatar.src}
-                        alt={avatar.name}
-                        className="size-32 rounded-[4px] border border-mist shadow-xs object-cover"
-                      />
-                    </div>
-                  ))}
+      {/* Scrollable Conversation Container */}
+      <Conversation className="absolute inset-0 w-full h-full bg-transparent overflow-y-auto scrollbar-minimal">
+        <ConversationContent className="mx-auto w-full max-w-5xl gap-24 px-24 py-24 sm:px-32 pb-[220px] flex flex-col justify-center min-h-full">
+          {agent.error ? (
+            <div className="w-full shrink-0 z-20">
+              <div className="flex items-start gap-[12px] rounded-[4px] border border-destructive/20 bg-rose-50/50 p-16 text-sm">
+                <AlertCircleIcon className="mt-[2px] size-16 shrink-0 text-destructive" />
+                <div>
+                  <p className="font-semibold text-graphite-ink">Request failed</p>
+                  <p className="mt-[4px] text-slate">{agent.error.message}</p>
                 </div>
               </div>
             </div>
-          </div>
-        ) : (
-          /* Conversation Thread takes the entire top/middle space when not empty */
-          <Conversation className="min-h-0 flex-1 bg-paper-white w-full">
-            <ConversationContent className="mx-auto w-full max-w-5xl gap-24 px-16 py-24 sm:px-24">
+          ) : null}
+
+          {isEmpty ? (
+            <div className="w-full flex-1 flex flex-col justify-center pb-[80px] gap-32">
+              <div className="flex flex-col gap-24 items-start text-left py-24 select-none w-full animate-in fade-in duration-500">
+                <div className="space-y-16">
+                  <div className="flex items-center gap-12 flex-wrap">
+                    <h1 className="font-lustria text-4xl sm:text-5.5xl font-normal tracking-[-2px] text-graphite-ink leading-none">
+                      hi I'm rhea
+                    </h1>
+                    <div className="flex items-center justify-center size-36 sm:size-40 rounded bg-iris-violet text-paper-white shadow-sm select-none animate-pulse">
+                      <StarburstIcon className="size-18 sm:size-20" />
+                    </div>
+                  </div>
+                  <p className="text-slate text-[15px] leading-relaxed max-w-xl">
+                    Your autonomous DevOps incident copilot. Ask Rhea to inspect clusters, diagnose errors, or plan hotfixes with rhea subagents.
+                  </p>
+
+                  {/* Square Agent Avatars */}
+                  <div className="flex items-center gap-8 select-none flex-wrap pt-8">
+                    {[
+                      { src: "/planner.jpeg", name: "Planner" },
+                      { src: "/investigator.jpeg", name: "Investigator" },
+                      { src: "/sandbox.jpeg", name: "Sandbox" },
+                      { src: "/remediation.jpeg", name: "Remediation" },
+                      { src: "/approval.jpeg", name: "Approver" }
+                    ].map((avatar, idx) => (
+                      <div key={idx} className="relative group hover:scale-[1.03] transition-all duration-200" title={avatar.name}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={avatar.src}
+                          alt={avatar.name}
+                          className="size-32 rounded-[4px] border border-mist shadow-xs object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
               {agent.data.messages.map((message, index) => (
                 <AgentMessage
                   canRespond={!isBusy}
@@ -282,6 +280,7 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
                   }
                   key={message.id}
                   message={message}
+                  events={agent.events}
                   onInputResponses={(inputResponses) => agent.send({ inputResponses })}
                 />
               ))}
@@ -293,13 +292,15 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
                   </MessageContent>
                 </Message>
               )}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-        )}
+            </>
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
-        {/* Lower Section (Chat Composer anchored at the bottom) */}
-        <div className="w-full pt-16 shrink-0 z-10">
+      {/* Absolutely positioned Composer at the bottom */}
+      <div className="absolute bottom-0 left-0 right-0 w-full z-10 px-24 pb-24 sm:px-32 sm:pb-32 bg-gradient-to-t from-paper-white via-paper-white/95 to-transparent pt-48 pointer-events-none">
+        <div className="max-w-5xl mx-auto w-full pointer-events-auto">
           {composer}
         </div>
       </div>
