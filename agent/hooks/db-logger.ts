@@ -5,7 +5,9 @@ export default defineHook({
   events: {
     async "*"(event, ctx) {
       try {
-        const at = event.meta?.at || new Date().toISOString();
+        const at = event.meta?.at
+          ? new Date(event.meta.at as string | number | Date).toISOString()
+          : new Date().toISOString();
         // Extract org_id from authenticated session for tenant scoping
         const orgId = ctx.session.auth.current?.attributes?.orgId || "default";
         

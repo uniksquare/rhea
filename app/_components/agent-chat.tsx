@@ -17,6 +17,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
+import { Google } from "@lobehub/icons";
 
 const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPoQumYH3A-U6iG2g';
 
@@ -178,19 +179,14 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
       <div className="absolute top-[6px] left-[16px] flex items-center gap-[4px] select-none">
         {isBusy ? (
           <>
-            <StarburstIcon className="size-16 text-iris-violet animate-spin [animation-duration:3s]" />
+            <StarburstIcon className="size-[14px] text-iris-violet animate-spin [animation-duration:3s]" />
             <span className="text-[12px] font-semibold text-iris-violet font-sans leading-none animate-pulse">
               {thinkingStates[thinkingIndex]}
             </span>
           </>
         ) : (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://img.logo.dev/gemini.google.com?token=${LOGO_DEV_PUBLIC_KEY}&size=32`}
-              alt="Gemini Logo"
-              className="size-16 object-contain rounded-sm"
-            />
+            <Google.Color size={14} className="rounded-sm" />
             <span className="text-[12px] font-semibold text-iris-violet font-sans leading-none">
               Gemini 3.5 Flash
             </span>

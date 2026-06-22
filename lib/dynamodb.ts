@@ -14,12 +14,32 @@ const client = new DynamoDBClient({
 
 export const docClient = DynamoDBDocumentClient.from(client);
 
+function sanitizeValue(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (typeof value === "object") {
+    const sanitized: any = {};
+    for (const key of Object.keys(value)) {
+      sanitized[key] = sanitizeValue(value[key]);
+    }
+    return sanitized;
+  }
+  return value;
+}
+
 export async function putItem(tableName: string, item: Record<string, any>) {
   try {
     const result = await docClient.send(
       new PutCommand({
         TableName: tableName,
-        Item: item,
+        Item: sanitizeValue(item),
       })
     );
     return result;
@@ -34,7 +54,7 @@ export async function getItem(tableName: string, key: Record<string, any>) {
     const result = await docClient.send(
       new GetCommand({
         TableName: tableName,
-        Key: key,
+        Key: sanitizeValue(key),
       })
     );
     return result.Item;
@@ -55,9 +75,9 @@ export async function updateItem(
     const result = await docClient.send(
       new UpdateCommand({
         TableName: tableName,
-        Key: key,
+        Key: sanitizeValue(key),
         UpdateExpression: updateExpression,
-        ExpressionAttributeValues: expressionAttributeValues,
+        ExpressionAttributeValues: sanitizeValue(expressionAttributeValues),
         ExpressionAttributeNames: expressionAttributeNames,
         ReturnValues: "ALL_NEW",
       })

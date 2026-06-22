@@ -2,6 +2,11 @@ import pg from 'pg';
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import dotenv from 'dotenv';
 
+// Prevent pg from converting date/timestamp/timestamptz columns into JS Date objects
+pg.types.setTypeParser(1114, (val) => val);
+pg.types.setTypeParser(1184, (val) => val);
+pg.types.setTypeParser(1082, (val) => val);
+
 dotenv.config({ path: '.env.local' });
 
 let cachedPassword = '';
@@ -22,6 +27,26 @@ async function getPassword(host: string, region: string): Promise<string> {
     tokenExpiry = now + 9 * 60 * 1000; // Cache for 9 minutes
   }
   return cachedPassword;
+}
+
+function sanitizeDbResult(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeDbResult);
+  }
+  if (typeof value === "object") {
+    const sanitized: any = {};
+    for (const key of Object.keys(value)) {
+      sanitized[key] = sanitizeDbResult(value[key]);
+    }
+    return sanitized;
+  }
+  return value;
 }
 
 export async function queryDsql(text: string, params?: any[]) {
@@ -54,6 +79,9 @@ export async function queryDsql(text: string, params?: any[]) {
   await client.connect();
   try {
     const res = await client.query(text, params);
+    if (res.rows) {
+      res.rows = sanitizeDbResult(res.rows);
+    }
     return res;
   } finally {
     await client.end();

@@ -12,6 +12,7 @@ import {
 } from "@/components/ai-elements/tool";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Google } from "@lobehub/icons";
 import {
   Brain,
   Search,
@@ -179,17 +180,12 @@ export function AgentMessage({
           />
         ))}
         {!isStreaming && message.role === "assistant" && (
-          <div className="flex items-center gap-4 mt-8 select-none text-[10px] font-medium text-slate/50">
-            <StarburstIcon className="size-16 text-iris-violet opacity-40" />
-            <span className="font-sans">Rhea</span>
-            <span className="text-slate/30">•</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://img.logo.dev/gemini.google.com?token=${LOGO_DEV_PUBLIC_KEY}&size=32`}
-              alt="Gemini Logo"
-              className="size-12 opacity-40 grayscale object-contain"
-            />
-            <span className="font-sans">Gemini 3.5 Flash</span>
+          <div className="flex items-center gap-[4px] mt-8 select-none text-[10px] font-medium text-slate/50">
+            <StarburstIcon className="size-[12px] text-iris-violet opacity-40" />
+            <span className="font-sans leading-none">Rhea</span>
+            <span className="text-slate/30 leading-none">•</span>
+            <Google.Color size={12} className="opacity-40 grayscale" />
+            <span className="font-sans leading-none">Gemini 3.5 Flash</span>
           </div>
         )}
       </MessageContent>
