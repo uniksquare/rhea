@@ -14,37 +14,47 @@ import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Streamdown } from "streamdown";
 
+const MessageContext = createContext<{ from: UIMessage["role"] } | null>(null);
+
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
 };
 
 export const Message = ({ className, from, ...props }: MessageProps) => (
-  <div
-    className={cn(
-      "group flex w-full max-w-[95%] flex-col gap-2",
-      from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
-      className,
-    )}
-    {...props}
-  />
+  <MessageContext.Provider value={{ from }}>
+    <div
+      className={cn(
+        "group flex w-full max-w-[95%] flex-col gap-2",
+        from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
+        className,
+      )}
+      {...props}
+    />
+  </MessageContext.Provider>
 );
 
 export type MessageContentProps = HTMLAttributes<HTMLDivElement>;
 
-export const MessageContent = ({ children, className, ...props }: MessageContentProps) => (
-  <div
-    className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
-      "group-[.is-user]:ml-auto group-[.is-user]:rounded-2xl group-[.is-user]:bg-primary group-[.is-user]:px-4 group-[.is-user]:py-2.5 group-[.is-user]:text-primary-foreground",
-      "group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground",
-      "group-data-[optimistic=true]:opacity-70",
-      className,
-    )}
-    {...props}
-  >
-    {children}
-  </div>
-);
+export const MessageContent = ({ children, className, ...props }: MessageContentProps) => {
+  const context = useContext(MessageContext);
+  const isUser = context?.from === "user";
+
+  return (
+    <div
+      className={cn(
+        "flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+        isUser
+          ? "ml-auto rounded-[4px] bg-gradient-to-r from-iris-violet/15 to-powder-blue/25 border border-iris-violet/15 px-16 py-8 text-graphite-ink"
+          : "group-[.is-assistant]:w-full group-[.is-assistant]:text-foreground",
+        "group-data-[optimistic=true]:opacity-70",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
 
 export type MessageActionsProps = ComponentProps<"div">;
 

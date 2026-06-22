@@ -25,6 +25,16 @@ import {
   Database
 } from "lucide-react";
 
+const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPoQumYH3A-U6iG2g';
+
+function StarburstIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export type AgentInputResponse = {
   readonly optionId?: string;
   readonly requestId: string;
@@ -168,6 +178,20 @@ export function AgentMessage({
             showCaret={isStreaming && message.role === "assistant" && index === lastTextIndex}
           />
         ))}
+        {!isStreaming && message.role === "assistant" && (
+          <div className="flex items-center gap-4 mt-8 select-none text-[10px] font-medium text-slate/50">
+            <StarburstIcon className="size-16 text-iris-violet opacity-40" />
+            <span className="font-sans">Rhea</span>
+            <span className="text-slate/30">•</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`https://img.logo.dev/gemini.google.com?token=${LOGO_DEV_PUBLIC_KEY}&size=32`}
+              alt="Gemini Logo"
+              className="size-12 opacity-40 grayscale object-contain"
+            />
+            <span className="font-sans">Gemini 3.5 Flash</span>
+          </div>
+        )}
       </MessageContent>
     </Message>
   );
