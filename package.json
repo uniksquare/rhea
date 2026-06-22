@@ -13,6 +13,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@ai-sdk/google-vertex": "^4.0.148",
     "@aws-sdk/client-dsql": "^3.1073.0",
     "@aws-sdk/client-dynamodb": "^3.1073.0",
     "@aws-sdk/dsql-signer": "^3.1073.0",
