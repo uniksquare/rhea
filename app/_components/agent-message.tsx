@@ -1,6 +1,7 @@
 "use client";
 
-import { useEveAgent } from "eve/react";
+import { useReducer, useEffect, useState } from "react";
+import { useEveAgent, defaultMessageReducer } from "eve/react";
 import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
@@ -204,15 +205,78 @@ export function AgentMessage({
 }
 
 function SubagentProgress({ childSessionId }: { childSessionId: string }) {
-  const childAgent = useEveAgent({
-    initialSession: {
-      sessionId: childSessionId,
-      continuationToken: "",
-      streamIndex: 0,
-    },
-  });
+  const msgReducer = defaultMessageReducer();
+  const [state, dispatch] = useReducer(msgReducer.reduce, null, () => msgReducer.initial());
+  const [isStreaming, setIsStreaming] = useState(false);
 
-  const messages = childAgent.data.messages || [];
+  useEffect(() => {
+    if (!childSessionId) return;
+
+    let active = true;
+    const abortController = new AbortController();
+    setIsStreaming(true);
+
+    async function startStream() {
+      try {
+        const res = await fetch(`/eve/v1/session/${childSessionId}/stream`, {
+          signal: abortController.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch subagent stream: ${res.statusText}`);
+        }
+        const reader = res.body?.getReader();
+        if (!reader) return;
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        try {
+          while (active) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.trim() && active) {
+                try {
+                  const event = JSON.parse(line);
+                  dispatch(event);
+                  
+                  if (event.type === "session.completed" || event.type === "session.failed") {
+                    setIsStreaming(false);
+                  }
+                } catch (e) {
+                  console.error("Failed to parse subagent event line:", e);
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Subagent stream error:", err);
+        }
+      } finally {
+        if (active) {
+          setIsStreaming(false);
+        }
+      }
+    }
+
+    startStream();
+
+    return () => {
+      active = false;
+      abortController.abort();
+    };
+  }, [childSessionId]);
+
+  const messages = state.messages || [];
 
   return (
     <div className="mt-3 bg-muted/20 border border-muted/50 rounded-lg p-3 space-y-3 pl-4 border-l-2 border-l-iris-violet/50 ml-1.5 animate-in fade-in duration-300">
@@ -220,7 +284,7 @@ function SubagentProgress({ childSessionId }: { childSessionId: string }) {
         <Sparkles className="size-3 text-iris-violet" />
         <span>Subagent Internal Execution Log</span>
       </div>
-      {messages.length === 0 && childAgent.status !== "streaming" && (
+      {messages.length === 0 && isStreaming && (
         <span className="text-xs text-slate/50 italic">Waiting for subagent stream...</span>
       )}
       <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -232,8 +296,16 @@ function SubagentProgress({ childSessionId }: { childSessionId: string }) {
               {message.parts.map((part, index) => {
                 if (part.type === "reasoning") {
                   return (
-                    <div key={index} className="text-xs text-slate/75 italic bg-muted/40 p-2 rounded border border-muted/30">
-                      <strong>Reasoning:</strong> {part.text}
+                    <div key={index} className="mb-2">
+                      <Reasoning
+                        defaultOpen={true}
+                        isStreaming={part.state === "streaming"}
+                      >
+                        <ReasoningTrigger className="!text-[11px] !py-1 !px-2" />
+                        <ReasoningContent className="!text-xs !p-2 !mt-2">
+                          {part.text}
+                        </ReasoningContent>
+                      </Reasoning>
                     </div>
                   );
                 }
@@ -251,10 +323,22 @@ function SubagentProgress({ childSessionId }: { childSessionId: string }) {
                     : rawName;
                   const config = subagentsConfig[toolKey];
                   const displayName = config?.name || rawName;
+
+                  const isCompleted = part.state === "output-available";
+                  const isFailed = part.state === "output-error" || part.state === "output-denied";
+
                   return (
                     <div key={index} className="text-[11px] font-mono text-slate bg-muted/50 px-2 py-1 rounded border border-muted flex items-center gap-2 max-w-fit">
-                      <Loader2 className="size-3 animate-spin text-iris-violet shrink-0" />
-                      <span>Running tool: <strong>{displayName}</strong></span>
+                      {isCompleted ? (
+                        <CheckCircle2 className="size-3 text-emerald-500 shrink-0" />
+                      ) : isFailed ? (
+                        <XCircle className="size-3 text-destructive shrink-0" />
+                      ) : (
+                        <Loader2 className="size-3 animate-spin text-iris-violet shrink-0" />
+                      )}
+                      <span>
+                        {isCompleted ? "Completed" : isFailed ? "Failed" : "Running"} tool: <strong>{displayName}</strong>
+                      </span>
                     </div>
                   );
                 }
@@ -264,7 +348,7 @@ function SubagentProgress({ childSessionId }: { childSessionId: string }) {
           );
         })}
       </div>
-      {childAgent.status === "streaming" && (
+      {isStreaming && (
         <div className="flex items-center gap-2 text-[10px] text-slate/60 animate-pulse">
           <Loader2 className="size-3 animate-spin text-iris-violet animate-spin [animation-duration:3s]" />
           <span>Subagent executing...</span>

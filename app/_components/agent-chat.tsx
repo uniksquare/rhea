@@ -219,7 +219,12 @@ function AgentChatInner({ chatId, initialSession }: { chatId: string | null; ini
 
       {/* Scrollable Conversation Container */}
       <Conversation className="absolute inset-0 w-full h-full bg-transparent overflow-y-auto scrollbar-minimal">
-        <ConversationContent className="mx-auto w-full max-w-5xl gap-24 px-24 py-24 sm:px-32 pb-[220px] flex flex-col justify-center min-h-full">
+        <ConversationContent
+          className={cn(
+            "mx-auto w-full max-w-5xl gap-24 px-24 py-24 sm:px-32 pb-[220px] flex flex-col min-h-full",
+            isEmpty ? "justify-center" : "justify-start"
+          )}
+        >
           {agent.error ? (
             <div className="w-full shrink-0 z-20">
               <div className="flex items-start gap-[12px] rounded-[4px] border border-destructive/20 bg-rose-50/50 p-16 text-sm">

@@ -1,6 +1,10 @@
 import { defineAgent } from "eve";
 import { createVertex } from "@ai-sdk/google-vertex";
 
+// Suppress Vercel AI SDK thoughtSignature warning logs
+// @ts-ignore
+globalThis.AI_SDK_LOG_WARNINGS = false;
+
 const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   let updatedInit = init;
   if (init?.body && typeof init.body === "string") {

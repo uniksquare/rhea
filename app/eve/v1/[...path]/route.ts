@@ -51,6 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
       method: "GET",
       headers,
       cache: "no-store",
+      signal: req.signal,
     });
 
     if (subPath.endsWith("/stream")) {
@@ -112,6 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
       cache: "no-store",
       // @ts-ignore
       duplex: "half",
+      signal: req.signal,
     });
 
     return new Response(response.body, {
