@@ -146,13 +146,61 @@ const subagentsConfig: Record<string, {
     icon: Cpu,
     actionText: "Publishing lifecycle state checkpoints to AWS EventBridge..."
   },
-  aws_connectors: {
-    name: "AWS CloudWatch & EKS State",
+  connection__sentry: {
+    name: "Sentry MCP Connection",
+    color: "text-rose-600",
+    bgColor: "bg-rose-50/50",
+    borderColor: "border-rose-100",
+    icon: Search,
+    actionText: "Querying Sentry for issues, stack traces, and error events..."
+  },
+  connection__datadog: {
+    name: "Datadog MCP Connection",
+    color: "text-purple-600",
+    bgColor: "bg-purple-50/50",
+    borderColor: "border-purple-100",
+    icon: Search,
+    actionText: "Querying Datadog for logs, metrics, traces, and monitors..."
+  },
+  connection__github: {
+    name: "GitHub MCP Connection",
+    color: "text-orange-600",
+    bgColor: "bg-orange-50/50",
+    borderColor: "border-orange-100",
+    icon: Sparkles,
+    actionText: "Interacting with GitHub repositories, PRs, and issues..."
+  },
+  connection__aws: {
+    name: "AWS MCP Connection",
     color: "text-teal-600",
     bgColor: "bg-teal-50/50",
     borderColor: "border-teal-100",
     icon: Search,
-    actionText: "Retrieving application logs and cluster metrics..."
+    actionText: "Querying AWS CloudWatch, EKS, EC2, and CloudTrail..."
+  },
+  connection__slack: {
+    name: "Slack MCP Connection",
+    color: "text-pink-600",
+    bgColor: "bg-pink-50/50",
+    borderColor: "border-pink-100",
+    icon: ShieldCheck,
+    actionText: "Searching Slack messages and posting incident updates..."
+  },
+  connection__linear: {
+    name: "Linear MCP Connection",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50/50",
+    borderColor: "border-indigo-100",
+    icon: Sparkles,
+    actionText: "Managing Linear issues, projects, and incident tickets..."
+  },
+  connection__pagerduty: {
+    name: "PagerDuty MCP Connection",
+    color: "text-green-600",
+    bgColor: "bg-green-50/50",
+    borderColor: "border-green-100",
+    icon: ShieldCheck,
+    actionText: "Querying PagerDuty incidents, on-call, and services..."
   }
 };
 
@@ -388,9 +436,16 @@ function AgentMessagePart({
         </Reasoning>
       );
     case "dynamic-tool": {
-      const toolKey = part.toolName.startsWith("eve:subagent:")
+      let toolKey = part.toolName.startsWith("eve:subagent:")
         ? part.toolName.slice("eve:subagent:".length)
         : part.toolName;
+      // MCP connection tools: connection__<conn>__<tool> → match on connection__<conn>
+      if (toolKey.startsWith("connection__")) {
+        const segments = toolKey.split("__");
+        if (segments.length >= 2) {
+          toolKey = `${segments[0]}__${segments[1]}`;
+        }
+      }
       const config = subagentsConfig[toolKey];
       if (config) {
         const Icon = config.icon;

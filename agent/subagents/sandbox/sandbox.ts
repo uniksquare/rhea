@@ -1,7 +1,6 @@
 import { defineSandbox } from "eve/sandbox";
 import { vercel } from "eve/sandbox/vercel";
 import { queryDsql } from "../../../lib/dsql.ts";
-import { decrypt } from "../../../lib/crypto.ts";
 
 export default defineSandbox({
   backend: vercel({
@@ -24,83 +23,62 @@ export default defineSandbox({
       return;
     }
 
-    // 2. Fetch Active Connector Instances
+    // 2. Fetch Active MCP Connector Instances to build egress policy
     const res = await queryDsql(
-      "SELECT connector_type, display_name, config_encrypted FROM connector_instances WHERE org_id = $1 AND status = 'ACTIVE';",
+      "SELECT connector_type, display_name, mcp_url FROM connector_instances WHERE org_id = $1 AND status = 'ACTIVE';",
       [orgId]
     );
 
-    // 3. Build Dynamic Egress Network Policy & Credential Broker Transforms
-    const allowedDomains: string[] = ["github.com", "api.github.com"];
-    const transforms: Record<string, any[]> = {};
+    // 3. Build Dynamic Egress Network Policy
+    // MCP connections handle auth via Vercel Connect — no credential injection needed.
+    // We only need to allow egress to the MCP server domains.
+    const allowedDomains: string[] = [
+      "github.com",
+      "api.github.com",
+    ];
+
+    // Map of MCP connector types to their required egress domains
+    const connectorDomains: Record<string, string[]> = {
+      sentry: ["mcp.sentry.dev", "sentry.io"],
+      datadog: ["mcp.datadoghq.com", "datadoghq.com", "api.datadoghq.com"],
+      github: ["api.githubcopilot.com", "github.com", "api.github.com"],
+      aws: ["mcp.amazonaws.com", "amazonaws.com"],
+      slack: ["mcp.slack.com", "slack.com", "hooks.slack.com"],
+      linear: ["mcp.linear.app", "api.linear.app"],
+      pagerduty: ["mcp.pagerduty.com", "api.pagerduty.com", "identity.pagerduty.com"],
+    };
 
     for (const row of res.rows) {
-      try {
-        const decrypted = decrypt(row.config_encrypted);
-        const config = JSON.parse(decrypted);
-
-        if (row.connector_type === "datadog") {
-          const site = config.site || "datadoghq.com";
-          allowedDomains.push(site);
-          allowedDomains.push(`api.${site}`);
-
-          transforms[`api.${site}`] = [
-            {
-              transform: [
-                {
-                  headers: {
-                    "DD-API-KEY": config.apiKey || "",
-                    "DD-APPLICATION-KEY": config.appKey || "",
-                  },
-                },
-              ],
-            },
-          ];
-        } else if (row.connector_type === "prometheus") {
-          const urlStr = config.url;
-          if (urlStr) {
-            const parsedUrl = new URL(urlStr);
-            allowedDomains.push(parsedUrl.hostname);
-            if (parsedUrl.port) {
-              allowedDomains.push(`${parsedUrl.hostname}:${parsedUrl.port}`);
-            }
-          }
-        } else if (row.connector_type === "github") {
-          const pat = config.personalAccessToken;
-          if (pat) {
-            const basicAuth = Buffer.from(`x-access-token:${pat}`).toString("base64");
-            const headerObj = { transform: [{ headers: { authorization: `Basic ${basicAuth}` } }] };
-            transforms["api.github.com"] = [headerObj];
-            transforms["github.com"] = [headerObj];
-          }
-        } else if (row.connector_type === "slack") {
-          const botToken = config.botToken;
-          if (botToken) {
-            allowedDomains.push("slack.com");
-            allowedDomains.push("hooks.slack.com");
-            const headerObj = { transform: [{ headers: { authorization: `Bearer ${botToken}` } }] };
-            transforms["slack.com"] = [headerObj];
-            transforms["hooks.slack.com"] = [headerObj];
-          }
+      const domains = connectorDomains[row.connector_type];
+      if (domains) {
+        allowedDomains.push(...domains);
+      }
+      // Also allow the raw MCP URL domain
+      if (row.mcp_url) {
+        try {
+          const url = new URL(
+            row.mcp_url.startsWith("http") ? row.mcp_url : `https://${row.mcp_url}`
+          );
+          allowedDomains.push(url.hostname);
+        } catch {
+          // Skip malformed URLs
         }
-      } catch (err: any) {
-        console.error(`[sandbox.ts] Failed to decrypt or parse connector:`, err.message);
       }
     }
 
     const uniqueDomains = Array.from(new Set(allowedDomains));
     const allowConfig: Record<string, any[]> = {};
     for (const domain of uniqueDomains) {
-      allowConfig[domain] = transforms[domain] || [];
+      allowConfig[domain] = [];
     }
 
-    // 4. Initialize Sandbox with Zero-Trust firewall and subnets blocks
+    // 4. Initialize Sandbox with Zero-Trust firewall and subnet blocks
     const sandbox = await use({
       networkPolicy: {
         allow: allowConfig,
         subnets: {
           deny: [
-            "10.0.0.0/8",      // RFC1918 Class A
+            "10.0.0.0/8",       // RFC1918 Class A
             "172.16.0.0/12",    // RFC1918 Class B
             "192.168.0.0/16",   // RFC1918 Class C
             "169.254.169.254/32" // AWS Link-Local Instance Metadata
@@ -172,4 +150,3 @@ export default defineSandbox({
     }
   }
 });
-
