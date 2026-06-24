@@ -34,11 +34,13 @@ function StarburstIcon({ className = "" }: { className?: string }) {
 
 export function AgentChat({ chatId }: { chatId: string | null }) {
   const [initialSession, setInitialSession] = useState<any>(undefined);
+  const [initialEvents, setInitialEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(!!chatId);
 
   useEffect(() => {
     if (!chatId) {
       setInitialSession(undefined);
+      setInitialEvents([]);
       setLoading(false);
       return;
     }
@@ -50,9 +52,67 @@ export function AgentChat({ chatId }: { chatId: string | null }) {
         if (!res.ok) throw new Error("Failed to load chat session");
         return res.json();
       })
-      .then((data) => {
+      .then(async (data) => {
+        if (!active) return;
+
+        const sessionState = data.agent_session_state;
+        const sessionId = sessionState?.sessionId;
+
+        if (!sessionId) {
+          setInitialSession(undefined);
+          setInitialEvents([]);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch all events from the stream
+        const loadedEvents: any[] = [];
+        try {
+          const streamRes = await fetch(`/eve/v1/session/${sessionId}/stream`);
+          if (streamRes.ok) {
+            const reader = streamRes.body?.getReader();
+            if (reader) {
+              const decoder = new TextDecoder();
+              let buffer = "";
+              let doneReading = false;
+
+              while (!doneReading && active) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+
+                for (const line of lines) {
+                  if (line.trim() && active) {
+                    try {
+                      const event = JSON.parse(line);
+                      loadedEvents.push(event);
+
+                      if (
+                        event.type === "session.waiting" ||
+                        event.type === "session.completed" ||
+                        event.type === "session.failed"
+                      ) {
+                        doneReading = true;
+                      }
+                    } catch (e) {
+                      console.error("Failed to parse event line:", e);
+                    }
+                  }
+                }
+              }
+              reader.releaseLock();
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load session events:", err);
+        }
+
         if (active) {
-          setInitialSession(data.agent_session_state || undefined);
+          setInitialSession(sessionState || undefined);
+          setInitialEvents(loadedEvents);
           setLoading(false);
         }
       })
@@ -79,15 +139,24 @@ export function AgentChat({ chatId }: { chatId: string | null }) {
     );
   }
 
-  return <AgentChatInner chatId={chatId} initialSession={initialSession} />;
+  return <AgentChatInner chatId={chatId} initialSession={initialSession} initialEvents={initialEvents} />;
 }
 
-function AgentChatInner({ chatId, initialSession }: { chatId: string | null; initialSession: any }) {
+function AgentChatInner({
+  chatId,
+  initialSession,
+  initialEvents,
+}: {
+  chatId: string | null;
+  initialSession: any;
+  initialEvents: any[];
+}) {
   const [currentChatId, setCurrentChatId] = useState(chatId);
   const isCreatingChatRef = useRef(false);
 
   const agent = useEveAgent({
     initialSession,
+    initialEvents,
     async onSessionChange(newSessionState) {
       if (currentChatId) {
         try {
