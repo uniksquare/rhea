@@ -68,13 +68,14 @@ export function AgentChat({ chatId }: { chatId: string | null }) {
         // Fetch all events from the stream
         const loadedEvents: any[] = [];
         try {
-          const streamRes = await fetch(`/eve/v1/session/${sessionId}/stream`);
+          const streamRes = await fetch(`/eve/v1/session/${sessionId}/stream?startIndex=0`);
           if (streamRes.ok) {
             const reader = streamRes.body?.getReader();
             if (reader) {
               const decoder = new TextDecoder();
               let buffer = "";
               let doneReading = false;
+              const targetCount = sessionState?.streamIndex || 0;
 
               while (!doneReading && active) {
                 const { done, value } = await reader.read();
@@ -91,9 +92,11 @@ export function AgentChat({ chatId }: { chatId: string | null }) {
                       loadedEvents.push(event);
 
                       if (
-                        event.type === "session.waiting" ||
-                        event.type === "session.completed" ||
-                        event.type === "session.failed"
+                        targetCount > 0
+                          ? loadedEvents.length >= targetCount
+                          : event.type === "session.waiting" ||
+                            event.type === "session.completed" ||
+                            event.type === "session.failed"
                       ) {
                         doneReading = true;
                       }
