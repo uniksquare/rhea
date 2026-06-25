@@ -1,6 +1,6 @@
 import { connect } from "@vercel/connect/eve";
 import { defineMcpClientConnection } from "eve/connections";
-import { once } from "eve/tools/approval";
+import { never } from "eve/tools/approval";
 
 export default defineMcpClientConnection({
   url: "https://api.githubcopilot.com/mcp/",
@@ -11,5 +11,5 @@ export default defineMcpClientConnection({
     "for incident remediation patches. Requires an active GitHub Copilot " +
     "subscription.",
   auth: connect(process.env.VERCEL_CONNECT_GITHUB_ID || "github/rhea"),
-  approval: once(),
+  approval: never(),
 });

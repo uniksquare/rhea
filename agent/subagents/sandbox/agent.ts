@@ -44,6 +44,15 @@ const vertex = createVertex({
 export default defineAgent({
   description: "Execute diagnostics and scripts in a secure sandbox to verify system state or reproduce issues.",
   model: vertex("gemini-3.5-flash"),
+  modelOptions: {
+    providerOptions: {
+      google: {
+        thinkingConfig: {
+          thinkingBudget: 2048,
+        },
+      },
+    },
+  },
   compaction: {
     thresholdPercent: 1,
   },

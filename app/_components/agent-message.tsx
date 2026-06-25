@@ -1,6 +1,7 @@
 "use client";
 
 import { useReducer, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useEveAgent, defaultMessageReducer } from "eve/react";
 import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
@@ -25,7 +26,10 @@ import {
   CheckCircle2,
   XCircle,
   Cpu,
-  Database
+  Database,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPoQumYH3A-U6iG2g';
@@ -146,60 +150,83 @@ const subagentsConfig: Record<string, {
     icon: Cpu,
     actionText: "Publishing lifecycle state checkpoints to AWS EventBridge..."
   },
+  todo: {
+    name: "Todo List",
+    color: "text-slate-600",
+    bgColor: "bg-slate-50/50",
+    borderColor: "border-slate-100",
+    icon: ClipboardList,
+    actionText: "Updating execution checklist and subagent todo items..."
+  },
+  connection__search: {
+    name: "Connection Search",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-50/50",
+    borderColor: "border-indigo-100",
+    icon: Search,
+    actionText: "Discovering active integrations and MCP tool capabilities..."
+  },
   connection__sentry: {
-    name: "Sentry MCP Connection",
+    name: "Sentry MCP",
     color: "text-rose-600",
     bgColor: "bg-rose-50/50",
     borderColor: "border-rose-100",
     icon: Search,
+    image: `https://img.logo.dev/sentry.io?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Querying Sentry for issues, stack traces, and error events..."
   },
   connection__datadog: {
-    name: "Datadog MCP Connection",
+    name: "Datadog MCP",
     color: "text-purple-600",
     bgColor: "bg-purple-50/50",
     borderColor: "border-purple-100",
     icon: Search,
+    image: `https://img.logo.dev/datadoghq.com?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Querying Datadog for logs, metrics, traces, and monitors..."
   },
   connection__github: {
-    name: "GitHub MCP Connection",
+    name: "GitHub MCP",
     color: "text-orange-600",
     bgColor: "bg-orange-50/50",
     borderColor: "border-orange-100",
     icon: Sparkles,
+    image: `https://img.logo.dev/github.com?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Interacting with GitHub repositories, PRs, and issues..."
   },
   connection__aws: {
-    name: "AWS MCP Connection",
+    name: "AWS MCP",
     color: "text-teal-600",
     bgColor: "bg-teal-50/50",
     borderColor: "border-teal-100",
     icon: Search,
+    image: `https://img.logo.dev/aws.amazon.com?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Querying AWS CloudWatch, EKS, EC2, and CloudTrail..."
   },
   connection__slack: {
-    name: "Slack MCP Connection",
+    name: "Slack MCP",
     color: "text-pink-600",
     bgColor: "bg-pink-50/50",
     borderColor: "border-pink-100",
     icon: ShieldCheck,
+    image: `https://img.logo.dev/slack.com?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Searching Slack messages and posting incident updates..."
   },
   connection__linear: {
-    name: "Linear MCP Connection",
+    name: "Linear MCP",
     color: "text-indigo-600",
     bgColor: "bg-indigo-50/50",
     borderColor: "border-indigo-100",
     icon: Sparkles,
+    image: `https://img.logo.dev/linear.app?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Managing Linear issues, projects, and incident tickets..."
   },
   connection__pagerduty: {
-    name: "PagerDuty MCP Connection",
+    name: "PagerDuty MCP",
     color: "text-green-600",
     bgColor: "bg-green-50/50",
     borderColor: "border-green-100",
     icon: ShieldCheck,
+    image: `https://img.logo.dev/pagerduty.com?token=${LOGO_DEV_PUBLIC_KEY}&size=64`,
     actionText: "Querying PagerDuty incidents, on-call, and services..."
   }
 };
@@ -292,7 +319,7 @@ function SubagentProgress({ childSessionId }: { childSessionId: string }) {
                 try {
                   const event = JSON.parse(line);
                   dispatch(event);
-                  
+
                   if (event.type === "session.completed" || event.type === "session.failed") {
                     setIsStreaming(false);
                   }
@@ -419,6 +446,13 @@ function AgentMessagePart({
   readonly showCaret: boolean;
   readonly events?: readonly any[];
 }) {
+  const isRunning = part.type === "dynamic-tool" && (part.state === "input-available" || part.state === "input-streaming");
+  const isPendingApproval = part.type === "dynamic-tool" && part.state === "approval-requested";
+  const isFailed = part.type === "dynamic-tool" && (part.state === "output-error" || part.state === "output-denied");
+  const defaultExpanded = isRunning || isPendingApproval || isFailed;
+
+  const [isExpanded, setIsExpanded] = useState(true);
+
   switch (part.type) {
     case "step-start":
       return null;
@@ -459,12 +493,20 @@ function AgentMessagePart({
         )?.data.childSessionId;
 
         return (
-          <div className={cn(
-            "not-prose mb-4 w-full rounded-lg border p-4 transition-all duration-300 bg-card shadow-sm",
-            config.borderColor,
-            config.bgColor
-          )}>
-            <div className="flex items-center justify-between gap-3">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className={cn(
+              "not-prose mb-4 w-full rounded-lg border p-4 transition-all duration-300 bg-card shadow-sm",
+              config.borderColor,
+              config.bgColor
+            )}
+          >
+            <div
+              className="flex items-center justify-between gap-3 cursor-pointer select-none"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
               <div className="flex items-center gap-2.5">
                 {config.image ? (
                   <div className="shrink-0 relative">
@@ -496,88 +538,119 @@ function AgentMessagePart({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 {isCompleted && <CheckCircle2 className="size-4 text-emerald-500" />}
                 {isFailed && <XCircle className="size-4 text-destructive" />}
                 {isPendingApproval && <Loader2 className="size-4 animate-spin text-yellow-500" />}
                 <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
                   {part.state.replace("-", " ")}
                 </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(!isExpanded);
+                  }}
+                  className="p-1.5 hover:bg-muted/80 rounded-md transition-all cursor-pointer flex items-center justify-center text-slate/60 hover:text-slate"
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="size-[14px]" />
+                  ) : (
+                    <ChevronDown className="size-[14px]" />
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className="mt-3.5 space-y-3 pl-8 text-sm border-l border-muted/50 ml-3.5">
-              {!!part.input && (
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Arguments / Parameters
-                  </div>
-                  <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border border-muted max-h-[220px] overflow-y-auto whitespace-pre-wrap">
-                    {typeof part.input === 'object' && part.input !== null && 'message' in part.input
-                      ? String((part.input as any).message)
-                      : JSON.stringify(part.input, null, 2)}
-                  </div>
-                </div>
-              )}
+            <AnimatePresence initial={false}>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3.5 space-y-3 pl-8 text-sm border-l border-muted/50 ml-3.5">
+                    {!!part.input && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Arguments / Parameters
+                        </div>
+                        <div className="text-xs font-mono bg-muted/50 p-2.5 rounded border border-muted max-h-[220px] overflow-y-auto whitespace-pre-wrap">
+                          {typeof part.input === 'object' && part.input !== null && 'message' in part.input
+                            ? String((part.input as any).message)
+                            : JSON.stringify(part.input, null, 2)}
+                        </div>
+                      </div>
+                    )}
 
+                    <InputRequestActions
+                      canRespond={canRespond}
+                      part={part}
+                      onInputResponses={onInputResponses}
+                    />
+
+                    {childSessionId && (
+                      <SubagentProgress childSessionId={childSessionId} />
+                    )}
+
+                    {!!part.output && (
+                      <div className="space-y-1 animate-in fade-in-50 duration-500">
+                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Execution Result
+                        </div>
+                        <div className="text-xs font-mono bg-muted/30 p-2.5 rounded border border-muted/50 max-h-[220px] overflow-y-auto whitespace-pre-wrap">
+                          {typeof part.output === 'object'
+                            ? JSON.stringify(part.output, null, 2)
+                            : String(part.output)}
+                        </div>
+                      </div>
+                    )}
+
+                    {part.errorText && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-destructive uppercase tracking-wider">
+                          Error Log
+                        </div>
+                        <div className="text-xs text-destructive font-mono bg-destructive/5 p-2.5 rounded border border-destructive/15 whitespace-pre-wrap">
+                          {part.errorText}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      }
+
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <Tool
+            defaultOpen={defaultExpanded}
+          >
+            <ToolHeader
+              state={part.state}
+              title={part.toolName}
+              toolName={part.toolName}
+              type="dynamic-tool"
+            />
+            <ToolContent>
+              <ToolInput input={part.input} />
               <InputRequestActions
                 canRespond={canRespond}
                 part={part}
                 onInputResponses={onInputResponses}
               />
-
-              {childSessionId && (
-                <SubagentProgress childSessionId={childSessionId} />
-              )}
-
-              {!!part.output && (
-                <div className="space-y-1 animate-in fade-in-50 duration-500">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Execution Result
-                  </div>
-                  <div className="text-xs font-mono bg-muted/30 p-2.5 rounded border border-muted/50 max-h-[220px] overflow-y-auto whitespace-pre-wrap">
-                    {typeof part.output === 'object'
-                      ? JSON.stringify(part.output, null, 2)
-                      : String(part.output)}
-                  </div>
-                </div>
-              )}
-
-              {part.errorText && (
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold text-destructive uppercase tracking-wider">
-                    Error Log
-                  </div>
-                  <div className="text-xs text-destructive font-mono bg-destructive/5 p-2.5 rounded border border-destructive/15 whitespace-pre-wrap">
-                    {part.errorText}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <Tool
-          defaultOpen={part.state === "approval-requested" || part.state === "approval-responded"}
-        >
-          <ToolHeader
-            state={part.state}
-            title={part.toolName}
-            toolName={part.toolName}
-            type="dynamic-tool"
-          />
-          <ToolContent>
-            <ToolInput input={part.input} />
-            <InputRequestActions
-              canRespond={canRespond}
-              part={part}
-              onInputResponses={onInputResponses}
-            />
-            <ToolOutput errorText={part.errorText} output={part.output} />
-          </ToolContent>
-        </Tool>
+              <ToolOutput errorText={part.errorText} output={part.output} />
+            </ToolContent>
+          </Tool>
+        </motion.div>
       );
     }
   }

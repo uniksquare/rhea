@@ -58,7 +58,7 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
     { name: "Overview", href: "/overview", icon: LayoutGrid },
     { name: "Incidents", href: "/incidents", icon: AlertCircle },
     { name: "Integrations", href: "/connectors", icon: Plug },
-    { name: "Sandbox Security", href: "/sandbox", icon: Shield },
+    { name: "Computer", href: "/sandbox", icon: Shield },
     { name: "Team & Keys", href: "/team", icon: Users },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
