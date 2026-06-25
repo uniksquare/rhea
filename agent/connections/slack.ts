@@ -9,6 +9,6 @@ export default defineMcpClientConnection({
     "channel history and threaded conversations, list available channels, " +
     "post status updates to incident channels, and reply to threads for " +
     "real-time incident coordination and human-in-the-loop approvals.",
-  auth: connect("slack"),
+  auth: connect(process.env.VERCEL_CONNECT_SLACK_ID || "slack/rhea-connect"),
   approval: once(),
 });

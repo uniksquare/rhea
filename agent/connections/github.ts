@@ -10,6 +10,6 @@ export default defineMcpClientConnection({
     "commit history, create branches, push commits, and open pull requests " +
     "for incident remediation patches. Requires an active GitHub Copilot " +
     "subscription.",
-  auth: connect("github"),
+  auth: connect(process.env.VERCEL_CONNECT_GITHUB_ID || "github/rhea"),
   approval: once(),
 });

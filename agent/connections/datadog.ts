@@ -10,6 +10,6 @@ export default defineMcpClientConnection({
     "maps, list active monitors and their alert states, browse dashboard " +
     "definitions, and inspect service-level objectives (SLOs). Requires " +
     "mcp_read permission enabled in the Datadog organization settings.",
-  auth: connect("datadog"),
+  auth: connect(process.env.VERCEL_CONNECT_DATADOG_ID || "datadog"),
   approval: once(),
 });

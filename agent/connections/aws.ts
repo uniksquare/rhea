@@ -10,6 +10,6 @@ export default defineMcpClientConnection({
     "target groups, check IAM policies and role trust relationships, " +
     "read CloudTrail API audit events, diagnose Lambda invocation errors, " +
     "and analyze RDS instance performance metrics.",
-  auth: connect("aws"),
+  auth: connect(process.env.VERCEL_CONNECT_AWS_ID || "aws"),
   approval: once(),
 });

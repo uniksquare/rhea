@@ -10,6 +10,6 @@ export default defineMcpClientConnection({
     "breadcrumbs and event context, list projects and releases, and check " +
     "release health metrics across all Sentry organizations the user has " +
     "access to.",
-  auth: connect("sentry"),
+  auth: connect(process.env.VERCEL_CONNECT_SENTRY_ID || "sentry"),
   approval: once(),
 });

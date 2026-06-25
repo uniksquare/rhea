@@ -214,8 +214,14 @@ export function ConnectorsClient({
       const data = await res.json();
       showNotification(data.message || `${meta.name} connected`);
       router.refresh();
-      // Reload to pick up new connector state from server
-      window.location.reload();
+      
+      if (data.authorizationUrl) {
+        // Redirect directly to the interactive OAuth flow
+        window.location.href = data.authorizationUrl;
+      } else {
+        // Fallback to reload if auth URL is not generated
+        window.location.reload();
+      }
     } catch (err: any) {
       console.error(err);
       showNotification(err.message || "Connection failed");

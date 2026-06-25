@@ -176,6 +176,8 @@ async function run() {
     `ALTER TABLE fix_patterns ADD COLUMN IF NOT EXISTS org_id UUID;`,
     `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS mcp_url TEXT;`,
     `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connect_provider_id VARCHAR(100);`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connected_by UUID;`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP;`,
 
     // ── Seed default org ──
     `INSERT INTO organizations (name)

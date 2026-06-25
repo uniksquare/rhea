@@ -9,6 +9,6 @@ export default defineMcpClientConnection({
     "retrieve incident details, check current on-call schedules and " +
     "escalation policies, query service health, acknowledge and resolve " +
     "alerts, and inspect recent change events for correlation analysis.",
-  auth: connect("pagerduty"),
+  auth: connect(process.env.VERCEL_CONNECT_PAGERDUTY_ID || "pagerduty.com/orange-button"),
   approval: once(),
 });

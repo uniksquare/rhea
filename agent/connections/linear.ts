@@ -9,6 +9,6 @@ export default defineMcpClientConnection({
     "or query, list projects and active cycles, create new issues linked " +
     "to incidents, update issue status and priority, add comments for " +
     "investigation updates, and track team workload across assignees.",
-  auth: connect("linear"),
+  auth: connect(process.env.VERCEL_CONNECT_LINEAR_ID || "linear/rhea-bloop"),
   approval: once(),
 });

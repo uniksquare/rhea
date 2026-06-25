@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { queryDsql } from "@/lib/dsql";
+import { startAuthorization } from "@vercel/connect";
 
 /**
  * MCP connector registry.
@@ -12,37 +13,37 @@ const MCP_CONNECTORS: Record<
 > = {
   sentry: {
     url: "https://mcp.sentry.dev/sse",
-    providerId: "sentry",
+    providerId: process.env.VERCEL_CONNECT_SENTRY_ID || "sentry",
     name: "Sentry",
   },
   datadog: {
     url: "https://mcp.datadoghq.com/sse",
-    providerId: "datadog",
+    providerId: process.env.VERCEL_CONNECT_DATADOG_ID || "datadog",
     name: "Datadog",
   },
   github: {
     url: "https://api.githubcopilot.com/mcp/",
-    providerId: "github",
+    providerId: process.env.VERCEL_CONNECT_GITHUB_ID || "github/rhea",
     name: "GitHub",
   },
   aws: {
     url: "https://mcp.amazonaws.com",
-    providerId: "aws",
+    providerId: process.env.VERCEL_CONNECT_AWS_ID || "aws",
     name: "AWS",
   },
   slack: {
     url: "https://mcp.slack.com/sse",
-    providerId: "slack",
+    providerId: process.env.VERCEL_CONNECT_SLACK_ID || "slack/rhea-connect",
     name: "Slack",
   },
   linear: {
     url: "https://mcp.linear.app/sse",
-    providerId: "linear",
+    providerId: process.env.VERCEL_CONNECT_LINEAR_ID || "linear/rhea-bloop",
     name: "Linear",
   },
   pagerduty: {
     url: "https://mcp.pagerduty.com/mcp",
-    providerId: "pagerduty",
+    providerId: process.env.VERCEL_CONNECT_PAGERDUTY_ID || "pagerduty.com/orange-button",
     name: "PagerDuty",
   },
 };
@@ -125,44 +126,74 @@ export async function POST(req: Request) {
       [orgId, connectorType]
     );
 
+    let instanceId: string;
+    let isNew = true;
+
     if (existing.rows.length > 0) {
+      instanceId = existing.rows[0].instance_id;
+      isNew = false;
       // Update existing instance
       await queryDsql(
         `UPDATE connector_instances
          SET display_name = $3, status = 'ACTIVE', connected_by = $4,
              connected_at = CURRENT_TIMESTAMP
          WHERE instance_id = $1 AND org_id = $2;`,
-        [existing.rows[0].instance_id, orgId, displayName || mcpMeta.name, userId]
+        [instanceId, orgId, displayName || mcpMeta.name, userId]
       );
-
-      return NextResponse.json({
-        success: true,
-        message: `${mcpMeta.name} connector reconnected`,
-        instanceId: existing.rows[0].instance_id,
-      });
+    } else {
+      // Insert new MCP connector instance
+      const insertRes = await queryDsql(
+        `INSERT INTO connector_instances
+           (org_id, connector_type, display_name, mcp_url, connect_provider_id,
+            connected_by, status, connected_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', CURRENT_TIMESTAMP)
+         RETURNING instance_id;`,
+        [
+          orgId,
+          connectorType,
+          displayName || mcpMeta.name,
+          mcpMeta.url,
+          mcpMeta.providerId,
+          userId,
+        ]
+      );
+      instanceId = insertRes.rows[0].instance_id;
     }
 
-    // Insert new MCP connector instance
-    const insertRes = await queryDsql(
-      `INSERT INTO connector_instances
-         (org_id, connector_type, display_name, mcp_url, connect_provider_id,
-          connected_by, status, connected_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', CURRENT_TIMESTAMP)
-       RETURNING instance_id;`,
-      [
-        orgId,
-        connectorType,
-        displayName || mcpMeta.name,
-        mcpMeta.url,
+    // Attempt to generate Vercel Connect OAuth URL for the user
+    let authorizationUrl: string | undefined;
+    try {
+      const origin = req.headers.get("origin") || "http://localhost:3000";
+      const callbackUrl = `${origin}/connectors?connected=${connectorType}`;
+
+      const authResponse = await startAuthorization(
         mcpMeta.providerId,
-        userId,
-      ]
-    );
+        {
+          subject: {
+            type: "user",
+            id: userId,
+            issuer: "authjs",
+          },
+        },
+        {
+          callbackUrl,
+        }
+      );
+      authorizationUrl = authResponse.url;
+    } catch (authErr: any) {
+      console.warn(
+        `[connectors API] Vercel Connect startAuthorization omitted/failed for ${connectorType}:`,
+        authErr.message
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: `${mcpMeta.name} connector registered`,
-      instanceId: insertRes.rows[0].instance_id,
+      message: isNew
+        ? `${mcpMeta.name} connector registered`
+        : `${mcpMeta.name} connector reconnected`,
+      instanceId,
+      authorizationUrl,
     });
   } catch (err: any) {
     console.error("[connectors API] POST failed:", err.message);
