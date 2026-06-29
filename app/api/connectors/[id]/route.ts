@@ -15,7 +15,10 @@ export async function DELETE(
   const { id } = await params;
 
   if (!id) {
-    return NextResponse.json({ error: "Missing connector instance ID" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing connector instance ID" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -26,12 +29,21 @@ export async function DELETE(
     );
 
     if (res.rowCount === 0) {
-      return NextResponse.json({ error: "Connector instance not found or unauthorized" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Connector instance not found or unauthorized" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ success: true, message: "Connector deleted successfully" });
+    return NextResponse.json({
+      success: true,
+      message: "Connector disconnected and removed",
+    });
   } catch (err: any) {
     console.error(`[connectors delete API] Failed to delete ${id}:`, err.message);
-    return NextResponse.json({ error: "Failed to delete integration" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to disconnect integration" },
+      { status: 500 }
+    );
   }
 }

@@ -47,4 +47,16 @@ const vertex = createVertex({
 
 export default defineAgent({
   model: vertex("gemini-3.5-flash"),
+  modelOptions: {
+    providerOptions: {
+      google: {
+        thinkingConfig: {
+          thinkingBudget: 2048,
+        },
+      },
+    },
+  },
+  compaction: {
+    thresholdPercent: 1,
+  },
 });

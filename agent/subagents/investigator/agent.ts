@@ -44,4 +44,16 @@ const vertex = createVertex({
 export default defineAgent({
   description: "Query logs, metrics, and cloud state to isolate the root cause of an incident.",
   model: vertex("gemini-3.5-flash"),
+  modelOptions: {
+    providerOptions: {
+      google: {
+        thinkingConfig: {
+          thinkingBudget: 2048,
+        },
+      },
+    },
+  },
+  compaction: {
+    thresholdPercent: 1,
+  },
 });

@@ -44,4 +44,16 @@ const vertex = createVertex({
 export default defineAgent({
   description: "Generate fixes, rollback scripts, Terraform configs, or draft code/configuration PRs to resolve incidents.",
   model: vertex("gemini-3.5-flash"),
+  modelOptions: {
+    providerOptions: {
+      google: {
+        thinkingConfig: {
+          thinkingBudget: 2048,
+        },
+      },
+    },
+  },
+  compaction: {
+    thresholdPercent: 1,
+  },
 });

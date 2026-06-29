@@ -50,7 +50,7 @@ const CONNECTION_DOMAINS: Record<string, string> = {
   "AWS EKS": "aws.amazon.com",
   "GCP GKE": "google.com",
   "Helm": "helm.sh",
-  "Prometheus": "prometheus.io",
+  "Linear": "linear.app",
   "Rancher": "rancher.com",
 
   // Remediation
@@ -265,7 +265,7 @@ export function LandingClient() {
       active: true,
       headline: "Run diagnostics in secure containers",
       description: "Sandbox executes command-line diagnostic scripts inside isolated secure environments to reproduce errors, check latency, and inspect node state without risk.",
-      connectsWith: ["AWS EKS", "GCP GKE", "Helm", "Prometheus", "Rancher"],
+      connectsWith: ["AWS EKS", "GCP GKE", "Helm", "PagerDuty", "Rancher"],
       mascot: (
         <Image
           src="/sandbox.jpeg"
@@ -753,7 +753,7 @@ export function LandingClient() {
                 <IntegrationGridCell name="Sentry" domain="sentry.io" />
                 <IntegrationGridCell name="Splunk" domain="splunk.com" />
                 <IntegrationGridCell isEmpty />
-                <IntegrationGridCell name="Prometheus" domain="prometheus.io" />
+                <IntegrationGridCell name="Linear" domain="linear.app" />
                 <IntegrationGridCell name="Helm" domain="helm.sh" />
                 <IntegrationGridCell isEmpty />
 
@@ -820,7 +820,7 @@ export function LandingClient() {
                   <IntegrationGridCell name="Datadog" domain="datadoghq.com" />
                   <IntegrationGridCell name="Sentry" domain="sentry.io" />
                   <IntegrationGridCell name="Splunk" domain="splunk.com" />
-                  <IntegrationGridCell name="Prometheus" domain="prometheus.io" />
+                  <IntegrationGridCell name="Linear" domain="linear.app" />
                   <IntegrationGridCell name="Helm" domain="helm.sh" />
                   <IntegrationGridCell name="AWS" domain="aws.amazon.com" />
                   <IntegrationGridCell name="Rancher" domain="rancher.com" />

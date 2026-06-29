@@ -130,10 +130,13 @@ async function run() {
         org_id UUID NOT NULL,
         connector_type VARCHAR(100) NOT NULL,
         display_name VARCHAR(255) NOT NULL,
-        config_encrypted TEXT NOT NULL,
+        mcp_url TEXT NOT NULL,
+        connect_provider_id VARCHAR(100) NOT NULL,
+        connected_by UUID,
         status VARCHAR(50) DEFAULT 'ACTIVE',
         last_health_check TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        connected_at TIMESTAMP
     );`,
     `CREATE TABLE IF NOT EXISTS sandbox_sessions (
         session_id VARCHAR(255) PRIMARY KEY,
@@ -171,6 +174,10 @@ async function run() {
     `ALTER TABLE investigations ADD COLUMN IF NOT EXISTS org_id UUID;`,
     `ALTER TABLE root_causes ADD COLUMN IF NOT EXISTS org_id UUID;`,
     `ALTER TABLE fix_patterns ADD COLUMN IF NOT EXISTS org_id UUID;`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS mcp_url TEXT;`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connect_provider_id VARCHAR(100);`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connected_by UUID;`,
+    `ALTER TABLE connector_instances ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP;`,
 
     // ── Seed default org ──
     `INSERT INTO organizations (name)
