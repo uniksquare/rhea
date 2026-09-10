@@ -1,0 +1,125 @@
+# syntax=docker/dockerfile:1
+#
+# Production image for the rhea-v2 Web Developer harness + Eve runtime.
+#
+# The app is a Next.js server with Eve mounted in-process via `withEve`
+# (see next.config.ts). Per node_modules/eve/docs/guides/deployment.md,
+# section "How eve sits behind a host framework": when eve is mounted inside
+# a host web framework, the host "serves eve's routes through the framework
+# integration" on the same port. So the container runs `npm run start`
+# (`next start`), not `eve start`; there is only one process and one port.
+#
+# Runtime deps (git, gh, lftp) come from lib/github.ts, lib/previewer.ts;
+# the `claude` CLI comes from lib/harness.ts (RHEA_HARNESS_ENGINE=cli); the
+# `vercel` CLI comes from lib/vercel.ts, which prefers
+# node_modules/.bin/vercel, a devDependency, so devDependencies are kept in
+# the runtime node_modules rather than pruned.
+
+ARG NODE_IMAGE=node:24-bookworm-slim
+
+# ---------------------------------------------------------------------------
+# Stage 1: build. Installs full deps (incl. devDependencies), generates the
+# Prisma client, and runs `eve build` to produce the .eve/ compiled
+# artifacts eve's Next integration serves at runtime.
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS build
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install deps from the lockfile first so this layer is cached across source
+# edits. prisma/ is needed here because `npm ci`'s postinstall runs
+# `prisma generate`, which reads prisma/schema.prisma.
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
+# npm's install-scripts gating is already handled by package.json's
+# "allowScripts" allowlist (prisma, @prisma/client, @prisma/engines, esbuild,
+# sharp, fsevents), so a plain `npm ci` is safe here: it runs only the
+# allowlisted scripts, including postinstall's `prisma generate`.
+RUN npm ci
+
+# Explicit, per the deploy runbook: make sure the Prisma client is generated
+# even if the postinstall hook above were ever skipped.
+RUN npx prisma generate
+
+# Now bring in the rest of the source and build.
+COPY . .
+
+# No VERCEL env var is set here, so `eve build` skips the Vercel Build
+# Output bundle and only writes the portable .eve/ compiled framework
+# artifacts (discovery manifest, compiled manifest, module map) that
+# eve's Next integration reads at request time.
+RUN npx eve build
+
+# `next build` compiles the Next.js app (including the eve-mounted routes)
+# into .next/.
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime. Minimal apt footprint plus the CLIs the harness and
+# preview/publish/PR tools spawn as child processes at request time.
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS runtime
+
+ENV NODE_ENV=production \
+    RHEA_WORKSPACE_ROOTS=/data/workspaces \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
+
+# git    - lib/github.ts (open_pr / branch management)
+# gh     - lib/github.ts (GitHub CLI, PR creation)
+# lftp   - lib/previewer.ts / lib/publisher.ts (FTP mirror preview/publish)
+# ca-certificates, curl, gnupg - TLS trust plus fetching + verifying the
+#          GitHub CLI apt repo's signing key below.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gosu \
+        git \
+        lftp \
+        ca-certificates \
+        curl \
+        gnupg \
+    && mkdir -p -m 0755 /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Claude Code CLI, used directly by lib/harness.ts when
+# RHEA_HARNESS_ENGINE=cli (the default engine is the Agent SDK, which is
+# already an npm dependency and needs no separate binary).
+RUN npm install -g @anthropic-ai/claude-code \
+    && npm cache clean --force
+
+WORKDIR /app
+
+# Non-root runtime user. /data is the mount point for the Fly volume that
+# holds task workspaces (RHEA_WORKSPACE_ROOTS=/data/workspaces).
+RUN groupadd --system --gid 1001 rhea \
+    && useradd --system --uid 1001 --gid rhea --home-dir /app --shell /usr/sbin/nologin rhea \
+    && mkdir -p /data/workspaces \
+    && chown -R rhea:rhea /data /app
+
+# Full app directory from the build stage: node_modules (incl.
+# devDependencies, e.g. node_modules/.bin/vercel), the generated Prisma
+# client, .next/ build output, .eve/ compiled artifacts, and the source
+# (next.config.ts, middleware.ts, agent/, lib/, app/, prisma/) that `next
+# start` and the eve integration read at startup and at request time.
+COPY --from=build --chown=rhea:rhea /app /app
+
+
+EXPOSE 3000
+
+# Single process, single port: Next.js (with eve mounted via withEve) serves
+# both the cockpit UI/API routes and eve's session/stream/channel routes.
+# See the file header for the deployment-doc citation.
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["npm", "run", "start"]

@@ -1,0 +1,30 @@
+# Fly.io app config for the rhea-v2 worker image (Web Developer harness +
+# Eve runtime). Deploy with: fly deploy -c fly.worker.toml
+# See docs/deploy-worker.md for the full runbook (volume, secrets, launch).
+
+app = "rhea-worker"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[env]
+  NODE_ENV = "production"
+  RHEA_HARNESS_ENGINE = "cli"
+  RHEA_WORKSPACE_ROOTS = "/data/workspaces"
+
+[[mounts]]
+  source = "rhea_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
