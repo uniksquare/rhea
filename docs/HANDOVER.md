@@ -59,3 +59,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - T9 Vercel token merged (38a05f4), review clean (token never in config/responses/errors; single decrypt path). T11 secrets rotation endpoint started in wt-2 (feat/secrets-rotation). T10 under review in wt-1.
 
 - T10 merged (dc47b5c): soft discard now removes the task worktree (branch kept; uncommitted edits in that worktree are dropped, by design) and the Usage page splits billed API cost from subscription-covered tokens. T12 started in wt-1 (feat/task-revive): revive a discarded task (discarded -> planning, worktree re-created) + a /tasks history page with filters. T11 secrets rotation still building in wt-2.
+
+- T11 secrets rotation merged (b6557e8), review clean (fails closed on corrupt ciphertext; rotated FTP pass used on next preview/publish). Minor note: the PATCH does not cross-check the key against the target type; the UI only sends the matching one. Waiting on T12, then the final whole-diff review.
