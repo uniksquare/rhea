@@ -76,6 +76,7 @@ ENV NODE_ENV=production \
 #          GitHub CLI apt repo's signing key below.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        gosu \
         git \
         lftp \
         ca-certificates \
@@ -113,11 +114,12 @@ RUN groupadd --system --gid 1001 rhea \
 # start` and the eve integration read at startup and at request time.
 COPY --from=build --chown=rhea:rhea /app /app
 
-USER rhea
 
 EXPOSE 3000
 
 # Single process, single port: Next.js (with eve mounted via withEve) serves
 # both the cockpit UI/API routes and eve's session/stream/channel routes.
 # See the file header for the deployment-doc citation.
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]

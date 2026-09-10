@@ -109,3 +109,8 @@ This builds `Dockerfile.worker` remotely on Fly's builders and rolls the
   volume so they survive machine restarts; without a mounted volume at
   `/data`, workspace state is lost whenever the machine stops (this app's
   `[http_service]` has `auto_stop_machines = true`).
+
+## Volume ownership and long runs
+
+- The image starts as root only to `chown` the mounted `/data` volume (root-owned on first boot) and then drops to the `rhea` user via `gosu` (`docker-entrypoint.sh`). No manual permission step is needed.
+- Harness runs happen inside an open Eve stream connection, so `auto_stop_machines` will not stop a machine mid-run. Fly's edge can still drop a connection it considers idle; if long edits time out, raise the Fly HTTP idle timeout or move heavy edits to a background job.
