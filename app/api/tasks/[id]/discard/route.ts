@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasMinRole, type Role } from "@/lib/rbac";
+import { requirePermission, type Role } from "@/lib/rbac";
 import { getTask, updateTask } from "@/lib/platform";
 
 // POST: soft-discard a task. Published tasks cannot be discarded.
@@ -9,7 +9,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!hasMinRole(session.user.role as Role, "OPERATOR")) {
+  try {
+    requirePermission(session.user.role as Role, "tasks:discard");
+  } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
