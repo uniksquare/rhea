@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasMinRole, type Role } from "@/lib/rbac";
 import { getTask, resolveAssignmentConfig, updateTask, claimTaskStatus } from "@/lib/platform";
-import { checkoutBranch } from "@/lib/github";
+import { resolveTaskWorkspace } from "@/lib/worktree";
 import { publishLive } from "@/lib/publisher";
 
 const ERR_MAX = 500;
@@ -39,8 +39,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   try {
     // Decrypted config stays in memory here only; it is never logged or returned.
     const config = await resolveAssignmentConfig(task.assignmentId, orgId);
-    await checkoutBranch({ workspacePath: config.workspacePath, branch: task.branch });
-    const { url } = await publishLive({ config });
+    // Publish from the task's own worktree; the shared checkout is never touched.
+    const wt = await resolveTaskWorkspace(config, task.branch);
+    const { url } = await publishLive({ config: wt });
     await updateTask(id, orgId, { status: "published", publishedUrl: url });
     return NextResponse.json({ ...task, status: "published", publishedUrl: url });
   } catch (err: any) {

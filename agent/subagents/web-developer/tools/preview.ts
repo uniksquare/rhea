@@ -1,7 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { deployPreview } from "../../../../lib/previewer.ts";
-import { checkoutBranch } from "../../../../lib/github.ts";
+import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
 import { getTask, updateTask, resolveAssignmentConfig } from "../../../../lib/platform.ts";
 
 // Deterministic branch name for a task, shared across this subagent's tools.
@@ -41,10 +41,10 @@ export default defineTool({
     const branch = branchForTask(input.taskId);
 
     try {
-      // The workspace checkout is shared across tasks; make sure it is on this
-      // task's branch before the previewer reads the tree.
-      await checkoutBranch({ workspacePath: config.workspacePath, branch });
-      const { url } = await deployPreview({ config, branch });
+      // Each task has its own worktree; the previewer reads that tree, never
+      // the shared main checkout.
+      const wt = await resolveTaskWorkspace(config, branch);
+      const { url } = await deployPreview({ config: wt, branch });
       await updateTask(input.taskId, orgId, { previewUrl: url, status: "previewed" });
       return { url };
     } catch (err) {
