@@ -205,3 +205,72 @@ model HookAgentTask {
 
   @@map("hook_agent_tasks")
 }
+
+// ── Platform tables (rhea: Role / Assignment / Task / UsageLedger) ──
+// See docs/naming-and-concepts.md for the product <-> engineering vocabulary.
+
+model Role {
+  roleId      String    @id @default(dbgenerated("gen_random_uuid()")) @map("role_id") @db.Uuid
+  roleKey     String    @unique @map("role_key") @db.VarChar(100)
+  name        String    @db.VarChar(255)
+  description String?
+  manifest    Json
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("roles")
+}
+
+model Assignment {
+  assignmentId String    @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  roleKey      String    @map("role_key") @db.VarChar(100)
+  name         String    @db.VarChar(255)
+  config       Json
+  secretsEnc   String?   @map("secrets_enc")
+  status       String    @default("active") @db.VarChar(50)
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([orgId])
+  @@map("assignments")
+}
+
+model Task {
+  taskId       String    @id @default(dbgenerated("gen_random_uuid()")) @map("task_id") @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  assignmentId String    @map("assignment_id") @db.Uuid
+  status       String    @default("requested") @db.VarChar(50)
+  request      String
+  sessionId    String?   @map("session_id")
+  branch       String?
+  previewUrl   String?   @map("preview_url")
+  prUrl        String?   @map("pr_url")
+  publishedUrl String?   @map("published_url")
+  error        String?
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([orgId, assignmentId])
+  @@map("tasks")
+}
+
+model UsageLedger {
+  usageId          String    @id @default(dbgenerated("gen_random_uuid()")) @map("usage_id") @db.Uuid
+  orgId            String    @map("org_id") @db.Uuid
+  assignmentId     String?   @map("assignment_id") @db.Uuid
+  taskId           String?   @map("task_id") @db.Uuid
+  roleKey          String    @map("role_key") @db.VarChar(100)
+  tool             String    @db.VarChar(100)
+  provider         String    @db.VarChar(50)
+  model            String    @db.VarChar(100)
+  inputTokens      Int       @map("input_tokens")
+  outputTokens     Int       @map("output_tokens")
+  cacheReadTokens  Int       @map("cache_read_tokens")
+  cacheWriteTokens Int       @map("cache_write_tokens")
+  costUsd          Decimal   @map("cost_usd") @db.Decimal(12, 6)
+  createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orgId, createdAt])
+  @@map("usage_ledger")
+}

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import pg from "pg";
 import dotenv from "dotenv";
 
 // Scripts run outside Next.js (seed-db, init-db, test-db) need .env.local too.
@@ -17,6 +18,37 @@ export const prisma: PrismaClient =
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.__rheaPrisma = prisma;
+}
+
+// Legacy raw SQL (queryDsql call sites) runs through a pg Pool, not Prisma raw.
+// pg sends parameters untyped so Postgres infers uuid/jsonb/etc from context,
+// which is what the existing queries were written against. Prisma raw sends
+// params as `text` and Postgres refuses to coerce text -> uuid (error 42804).
+// Return dates as strings (matches the old type-parser behaviour).
+pg.types.setTypeParser(1114, (v) => v);
+pg.types.setTypeParser(1184, (v) => v);
+pg.types.setTypeParser(1082, (v) => v);
+
+const globalForPg = globalThis as unknown as { __rheaPgPool?: pg.Pool };
+
+function createPool(): pg.Pool {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL is not set in environment");
+  }
+  const needsSsl = /sslmode=require|neon\.tech/.test(url);
+  return new pg.Pool({
+    connectionString: url,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+    max: 5,
+  });
+}
+
+function getPool(): pg.Pool {
+  if (!globalForPg.__rheaPgPool) {
+    globalForPg.__rheaPgPool = createPool();
+  }
+  return globalForPg.__rheaPgPool;
 }
 
 /**
@@ -55,34 +87,18 @@ export interface QueryResult<Row = any> {
   rowCount: number;
 }
 
-// Statements that produce a result set. Leading SQL comments are skipped.
-const ROW_RETURNING_RE =
-  /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*(select|with|show|explain|values|table)\b/i;
-const RETURNING_RE = /\breturning\b/i;
-
 /**
  * Drop-in replacement for the old pg-based queryDsql(text, params).
  *
- * Uses $1, $2 ... positional parameters exactly like pg. SELECT-style
- * statements (and anything with RETURNING) go through $queryRawUnsafe and
- * return sanitized rows; INSERT/UPDATE/DELETE/DDL without RETURNING go through
- * $executeRawUnsafe so `rowCount` still reflects the affected row count.
+ * Uses $1, $2 ... positional parameters exactly like pg, through a shared
+ * pg Pool, so uuid/jsonb params are inferred by Postgres like before.
+ * `rowCount` reflects affected rows for INSERT/UPDATE/DELETE.
  */
 export async function queryDb<Row = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<Row>> {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set in environment");
-  }
-  const args = params ?? [];
-
-  if (ROW_RETURNING_RE.test(text) || RETURNING_RE.test(text)) {
-    const raw = await prisma.$queryRawUnsafe<Row[]>(text, ...args);
-    const rows: Row[] = sanitizeDbResult(raw) ?? [];
-    return { rows, rowCount: rows.length };
-  }
-
-  const affected = await prisma.$executeRawUnsafe(text, ...args);
-  return { rows: [], rowCount: affected };
+  const res = await getPool().query(text, params ?? []);
+  const rows: Row[] = sanitizeDbResult(res.rows) ?? [];
+  return { rows, rowCount: res.rowCount ?? rows.length };
 }
