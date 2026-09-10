@@ -256,6 +256,23 @@ model Task {
   @@map("tasks")
 }
 
+// One turn of a Task's client-facing chat. `mode` records whether the turn
+// asked for a plan or an edit; `usage` keeps the harness token accounting for
+// assistant turns.
+model TaskMessage {
+  messageId String    @id @default(dbgenerated("gen_random_uuid()")) @map("message_id") @db.Uuid
+  orgId     String    @map("org_id") @db.Uuid
+  taskId    String    @map("task_id") @db.Uuid
+  role      String    @db.VarChar(20)
+  content   String
+  mode      String?   @db.VarChar(20)
+  usage     Json?
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([taskId, createdAt])
+  @@map("task_messages")
+}
+
 model UsageLedger {
   usageId          String    @id @default(dbgenerated("gen_random_uuid()")) @map("usage_id") @db.Uuid
   orgId            String    @map("org_id") @db.Uuid
@@ -270,6 +287,8 @@ model UsageLedger {
   cacheReadTokens  Int       @map("cache_read_tokens")
   cacheWriteTokens Int       @map("cache_write_tokens")
   costUsd          Decimal   @map("cost_usd") @db.Decimal(12, 6)
+  /// "api" (metered, costUsd charged) or "subscription" (operator's Claude plan, costUsd nominal 0).
+  billing         String    @default("api") @db.VarChar(20)
   createdAt        DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([orgId, createdAt])

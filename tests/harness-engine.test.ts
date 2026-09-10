@@ -5,6 +5,11 @@ import {
   usesSubscriptionAuth,
   buildChildEnv,
   buildCliArgs,
+  resolveModel,
+  harnessBilling,
+  chargeableCost,
+  toResult,
+  BUILT_IN_DEFAULT_MODEL,
 } from "../lib/harness.ts";
 
 // Next augments ProcessEnv with a required NODE_ENV; the helpers only read
@@ -98,4 +103,83 @@ test("buildCliArgs: --model and plan permission mode pass through", () => {
 test("buildCliArgs: empty resumeSessionId does not add --resume", () => {
   const args = buildCliArgs({ ...baseArgs, resumeSessionId: "" });
   assert.ok(!args.includes("--resume"));
+});
+
+test("resolveModel: explicit model wins, then env default, then Sonnet (never the CLI default)", () => {
+  assert.equal(BUILT_IN_DEFAULT_MODEL, "claude-sonnet-4-5");
+  assert.equal(resolveModel(undefined, env({})), "claude-sonnet-4-5");
+  assert.equal(resolveModel("", env({})), "claude-sonnet-4-5");
+  assert.equal(resolveModel(undefined, env({ RHEA_HARNESS_DEFAULT_MODEL: "claude-haiku-4-5" })), "claude-haiku-4-5");
+  assert.equal(resolveModel(undefined, env({ RHEA_HARNESS_DEFAULT_MODEL: "  " })), "claude-sonnet-4-5");
+  assert.equal(
+    resolveModel("claude-opus-4-1", env({ RHEA_HARNESS_DEFAULT_MODEL: "claude-haiku-4-5" })),
+    "claude-opus-4-1"
+  );
+});
+
+test("harnessBilling: subscription only with RHEA_HARNESS_AUTH=subscription", () => {
+  assert.equal(harnessBilling(env({})), "api");
+  assert.equal(harnessBilling(env({ RHEA_HARNESS_AUTH: "api-key" })), "api");
+  assert.equal(harnessBilling(env({ RHEA_HARNESS_AUTH: "subscription" })), "subscription");
+  assert.equal(harnessBilling(env({ RHEA_HARNESS_AUTH: " SUBSCRIPTION " })), "subscription");
+});
+
+test("chargeableCost: api passes the cost through, subscription zeroes it", () => {
+  assert.equal(chargeableCost(0.42, "api"), 0.42);
+  assert.equal(chargeableCost(undefined, "api"), 0);
+  assert.equal(chargeableCost(0.42, "subscription"), 0);
+  assert.equal(chargeableCost(undefined, "subscription"), 0);
+});
+
+const rawOk = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  result: "done",
+  session_id: "sess-1",
+  total_cost_usd: 0.1234,
+  usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 2, cache_creation_input_tokens: 1 },
+};
+
+test("toResult: api billing keeps costUsd and records nominalCostUsd", () => {
+  const r = toResult(rawOk, "claude-sonnet-4-5", "cli", "api");
+  assert.equal(r.ok, true);
+  assert.equal(r.output, "done");
+  assert.equal(r.sessionId, "sess-1");
+  assert.equal(r.model, "claude-sonnet-4-5");
+  assert.deepEqual(r.usage, {
+    inputTokens: 10,
+    outputTokens: 5,
+    cacheReadTokens: 2,
+    cacheWriteTokens: 1,
+    costUsd: 0.1234,
+  });
+  const raw = r.raw as { engine: string; billing: string; nominalCostUsd: number };
+  assert.equal(raw.engine, "cli");
+  assert.equal(raw.billing, "api");
+  assert.equal(raw.nominalCostUsd, 0.1234);
+});
+
+test("toResult: subscription billing zeroes usage.costUsd but keeps raw.nominalCostUsd", () => {
+  const r = toResult(rawOk, undefined, "sdk", "subscription");
+  assert.equal(r.usage.costUsd, 0);
+  assert.equal(r.usage.inputTokens, 10);
+  const raw = r.raw as { engine: string; billing: string; nominalCostUsd: number };
+  assert.equal(raw.billing, "subscription");
+  assert.equal(raw.nominalCostUsd, 0.1234);
+  assert.equal(raw.engine, "sdk");
+});
+
+test("toResult: defaults to api billing and reports errors as ok=false", () => {
+  const r = toResult({ type: "result", subtype: "error_max_turns", is_error: true, total_cost_usd: 0.5 }, "m", "cli");
+  assert.equal(r.ok, false);
+  assert.equal(r.output, "harness ended: error_max_turns");
+  assert.equal(r.usage.costUsd, 0.5);
+});
+
+test("buildCliArgs: permission mode default is passed to the CLI as manual", () => {
+  const args = buildCliArgs({ ...baseArgs, permissionMode: "default" });
+  const p = args.indexOf("--permission-mode");
+  assert.ok(p >= 0);
+  assert.equal(args[p + 1], "manual");
 });

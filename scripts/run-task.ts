@@ -3,7 +3,8 @@
 //   npx tsx scripts/run-task.ts --assignment <id> --request "<text>" [--dry-run|--deploy] [--harness]
 //                               [--engine sdk|cli] [--resume <taskId>]
 //
-// Flow: createTask -> updateTask(planning) -> ensureBranch(task/<id8>)
+// Flow: createTask -> updateTask(planning) -> resolveTaskWorkspace(task/<id8>)
+//       (an isolated git worktree; the shared checkout never changes branch)
 //       -> [--harness] runHarness + commitAll(siteDir) + recordUsage + updateTask(sessionId)
 //       -> [--deploy] deployPreview + updateTask(previewed), else print the plan.
 // --resume <taskId> reuses that Task (its branch and stored harness sessionId)
@@ -22,23 +23,14 @@ import {
   recordUsage,
   resolveAssignmentConfig,
 } from "../lib/platform";
-import { ensureBranch, commitAll } from "../lib/github";
-import { runHarness, type HarnessEngine } from "../lib/harness";
+import { commitAll } from "../lib/github";
+import { runHarness, harnessBilling, type HarnessEngine } from "../lib/harness";
+import { resolveTaskWorkspace } from "../lib/worktree";
 import { deployPreview, slug, siteDirOf } from "../lib/previewer";
+import { branchForTask, errorText } from "../lib/task-chat";
 import type { AssignmentConfig } from "../lib/assignment-types";
 
 dotenv.config({ path: ".env.local" });
-
-// Same derivation as agent/subagents/web-developer/tools/edit_site.ts.
-function branchForTask(taskId: string): string {
-  const short = taskId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
-  return `task/${short}`;
-}
-
-function errorText(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.slice(0, 500);
-}
 
 const USAGE =
   'Usage: npx tsx scripts/run-task.ts --assignment <id> --request "<text>" [--dry-run|--deploy] [--harness] [--engine sdk|cli] [--resume <taskId>]';
@@ -143,9 +135,11 @@ async function main() {
     await updateTask(taskId, orgId, { status: "planning" });
 
     ensureLocalRepo(config.workspacePath, baseBranch);
-    await ensureBranch({ workspacePath: config.workspacePath, branch, base: baseBranch });
+    // Each task works in its own worktree; `wt` is the config pointed at it.
+    const wt = await resolveTaskWorkspace(config, branch);
     await updateTask(taskId, orgId, { branch });
     console.log(`branch: ${branch}`);
+    console.log(`worktree: ${wt.workspacePath}`);
 
     if (args.harness) {
       const prompt = [
@@ -155,12 +149,13 @@ async function main() {
         args.request,
       ].join("\n\n");
       const harness = await runHarness({
-        workspacePath: config.workspacePath,
+        workspacePath: wt.workspacePath,
         prompt,
         allowedTools: config.allowedTools,
         model: config.model,
         engine: args.engine,
         resumeSessionId,
+        scope: { siteDir },
       });
       const engine = (harness.raw as { engine?: string } | undefined)?.engine ?? "?";
       if (harness.sessionId) await updateTask(taskId, orgId, { sessionId: harness.sessionId });
@@ -170,7 +165,7 @@ async function main() {
       );
       if (!harness.ok) throw new Error(`harness failed: ${harness.output}`);
       const commit = await commitAll({
-        workspacePath: config.workspacePath,
+        workspacePath: wt.workspacePath,
         message: `rhea: ${args.request.slice(0, 72)}`,
         paths: [siteDir],
       });
@@ -187,6 +182,7 @@ async function main() {
         cacheReadTokens: harness.usage.cacheReadTokens,
         cacheWriteTokens: harness.usage.cacheWriteTokens,
         costUsd: harness.usage.costUsd,
+        billing: harnessBilling(process.env),
       });
       console.log(`harness: ok, changed=${commit.changed}, sha=${commit.sha}`);
       console.log(`harness summary: ${harness.output.slice(0, 300)}`);
@@ -195,11 +191,11 @@ async function main() {
     }
 
     if (args.deploy) {
-      const { url } = await deployPreview({ config, branch });
+      const { url } = await deployPreview({ config: wt, branch });
       await updateTask(taskId, orgId, { previewUrl: url, status: "previewed" });
       console.log(`preview url: ${url}`);
     } else {
-      const plan = previewPlan(config, branch);
+      const plan = previewPlan(wt, branch);
       console.log("dry-run: deployPreview would mirror (not called):");
       console.log(`  local  ${plan.localDir}`);
       console.log(`  remote ${plan.host ? `${plan.user}@${plan.host}:` : ""}${plan.remoteDir}`);

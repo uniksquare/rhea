@@ -1,6 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { runHarness } from "../../../../lib/harness.ts";
+import { runHarness, harnessBilling } from "../../../../lib/harness.ts";
 import {
   getAssignment,
   getTask,
@@ -8,53 +8,12 @@ import {
   updateTask,
   recordUsage,
 } from "../../../../lib/platform.ts";
+import { errorText, planFromOutput, type Plan } from "../../../../lib/task-chat.ts";
+
+export type { Plan, PlanEdit } from "../../../../lib/task-chat.ts";
 
 /** Read-only tool set for the planning run. Deliberately ignores config.allowedTools. */
 const PLAN_TOOLS = ["Read", "Glob", "Grep"];
-
-/** How much raw harness output to keep as the summary when the plan is not valid JSON. */
-const FALLBACK_SUMMARY_MAX = 2000;
-
-export type PlanEdit = { file: string; change: string };
-export type Plan = { summary: string; edits: PlanEdit[]; questions: string[] };
-
-function errorText(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.slice(0, 500);
-}
-
-function asString(v: unknown): string {
-  return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-/**
- * Extract the plan JSON from free-form harness output: strip code fences,
- * take the first `{` through the last `}`, and coerce fields to the expected
- * shape. Returns null when nothing parseable is found.
- */
-function parsePlan(output: string): Plan | null {
-  let text = output.trim();
-  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const obj = parsed as Record<string, unknown>;
-  const rawEdits = Array.isArray(obj.edits) ? obj.edits : [];
-  const edits: PlanEdit[] = rawEdits
-    .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
-    .map((e) => ({ file: asString(e.file), change: asString(e.change) }))
-    .filter((e) => e.file || e.change);
-  const rawQuestions = Array.isArray(obj.questions) ? obj.questions : [];
-  const questions = rawQuestions.map(asString).filter((q) => q.length > 0);
-  return { summary: asString(obj.summary), edits, questions };
-}
 
 export default defineTool({
   description:
@@ -121,6 +80,7 @@ export default defineTool({
         allowedTools: PLAN_TOOLS,
         readOnly: true,
         model: config.model,
+        scope: { siteDir },
       });
     } catch (err) {
       await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
@@ -132,11 +92,7 @@ export default defineTool({
       throw new Error(`Planning failed: ${errorText(harness.output)}`);
     }
 
-    const plan: Plan = parsePlan(harness.output) ?? {
-      summary: harness.output.slice(0, FALLBACK_SUMMARY_MAX),
-      edits: [],
-      questions: [],
-    };
+    const plan: Plan = planFromOutput(harness.output);
 
     await updateTask(taskId, orgId, { plan, status: "planning" });
 
@@ -153,6 +109,7 @@ export default defineTool({
       cacheReadTokens: harness.usage.cacheReadTokens,
       cacheWriteTokens: harness.usage.cacheWriteTokens,
       costUsd: harness.usage.costUsd,
+      billing: harnessBilling(process.env),
     });
 
     return {
