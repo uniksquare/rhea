@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { ArrowDownToLine, ArrowUpFromLine, DollarSign } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, DollarSign, ShieldCheck } from "lucide-react";
 import { getUsageSummary, type UsageSummary } from "./usage-query";
 import { UsageTables } from "./usage-tables";
 
 const EMPTY: UsageSummary = {
   since: new Date().toISOString(),
   totals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0, rows: 0 },
+  subscription: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, rows: 0 },
   byRole: [],
   byDay: [],
   recent: [],
@@ -31,7 +32,7 @@ export default async function UsagePage() {
     loadError = "Usage data is unavailable right now.";
   }
 
-  const { totals } = summary;
+  const { totals, subscription } = summary;
 
   return (
     <div className="space-y-24 max-w-7xl mx-auto p-24">
@@ -47,7 +48,7 @@ export default async function UsagePage() {
       )}
 
       {/* Metrics Row */}
-      <div className="grid gap-16 md:grid-cols-3">
+      <div className="grid gap-16 md:grid-cols-4">
         <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
           <div className="space-y-[4px]">
             <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Tokens In (30d)</p>
@@ -74,12 +75,25 @@ export default async function UsagePage() {
 
         <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
           <div className="space-y-[4px]">
-            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Cost USD (30d)</p>
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Billed (API) (30d)</p>
             <p className="text-3xl font-bold text-graphite-ink tracking-tight">{fmtUsd(totals.costUsd)}</p>
             <p className="text-[10px] font-mono text-slate/80">since {summary.since.slice(0, 10)}</p>
           </div>
           <div className="p-[12px] rounded border bg-paper-white text-amber-600 border-mist">
             <DollarSign className="size-[20px]" />
+          </div>
+        </div>
+
+        <div className="rounded border border-mist bg-soft-snow p-24 flex items-center justify-between shadow-sm">
+          <div className="space-y-[4px]">
+            <p className="text-[10px] font-mono font-medium text-slate uppercase tracking-wider">Covered by Subscription</p>
+            <p className="text-3xl font-bold text-graphite-ink tracking-tight">
+              {fmtInt(subscription.inputTokens + subscription.outputTokens)}
+            </p>
+            <p className="text-[10px] font-mono text-slate/80">{fmtInt(subscription.rows)} model calls, not billed</p>
+          </div>
+          <div className="p-[12px] rounded border bg-paper-white text-sky-600 border-mist">
+            <ShieldCheck className="size-[20px]" />
           </div>
         </div>
       </div>

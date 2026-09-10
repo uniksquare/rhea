@@ -1,4 +1,4 @@
-import type { UsageByRole, UsageRow } from "./usage-query";
+import type { BillingType, UsageByRole, UsageRow } from "./usage-query";
 
 const fmtInt = (n: number) => new Intl.NumberFormat("en-US").format(Math.round(n));
 const fmtUsd = (n: number) =>
@@ -19,6 +19,19 @@ function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
   );
 }
 
+function BillingBadge({ billing }: { billing: BillingType }) {
+  const isApi = billing === "api";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-[8px] py-[2px] text-[10px] font-mono font-medium uppercase tracking-wider ${
+        isApi ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
+      }`}
+    >
+      {isApi ? "API" : "Subscription"}
+    </span>
+  );
+}
+
 export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent: UsageRow[] }) {
   return (
     <div className="space-y-24">
@@ -30,6 +43,7 @@ export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent:
             <thead>
               <tr>
                 <th className={th}>Role</th>
+                <th className={th}>Billing</th>
                 <th className={thNum}>Calls</th>
                 <th className={thNum}>Tokens In</th>
                 <th className={thNum}>Tokens Out</th>
@@ -40,17 +54,20 @@ export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent:
             </thead>
             <tbody>
               {byRole.length === 0 ? (
-                <EmptyRow colSpan={7} text="No usage recorded in the last 30 days." />
+                <EmptyRow colSpan={8} text="No usage recorded in the last 30 days." />
               ) : (
                 byRole.map((r) => (
-                  <tr key={r.roleKey} className="hover:bg-soft-snow/50 transition-colors">
+                  <tr key={`${r.roleKey}-${r.billing}`} className="hover:bg-soft-snow/50 transition-colors">
                     <td className={`${td} font-medium`}>{r.roleKey}</td>
+                    <td className={td}>
+                      <BillingBadge billing={r.billing} />
+                    </td>
                     <td className={tdNum}>{fmtInt(r.rows)}</td>
                     <td className={tdNum}>{fmtInt(r.inputTokens)}</td>
                     <td className={tdNum}>{fmtInt(r.outputTokens)}</td>
                     <td className={tdNum}>{fmtInt(r.cacheReadTokens)}</td>
                     <td className={tdNum}>{fmtInt(r.cacheWriteTokens)}</td>
-                    <td className={tdNum}>{fmtUsd(r.costUsd)}</td>
+                    <td className={tdNum}>{r.billing === "api" ? fmtUsd(r.costUsd) : "n/a"}</td>
                   </tr>
                 ))
               )}
@@ -71,6 +88,7 @@ export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent:
                 <th className={th}>Tool</th>
                 <th className={th}>Provider</th>
                 <th className={th}>Model</th>
+                <th className={th}>Billing</th>
                 <th className={thNum}>In</th>
                 <th className={thNum}>Out</th>
                 <th className={thNum}>Cost</th>
@@ -78,7 +96,7 @@ export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent:
             </thead>
             <tbody>
               {recent.length === 0 ? (
-                <EmptyRow colSpan={8} text="No usage rows yet. Usage is recorded on each model call." />
+                <EmptyRow colSpan={9} text="No usage rows yet. Usage is recorded on each model call." />
               ) : (
                 recent.map((r) => (
                   <tr key={r.usageId} className="hover:bg-soft-snow/50 transition-colors">
@@ -89,9 +107,12 @@ export function UsageTables({ byRole, recent }: { byRole: UsageByRole[]; recent:
                     <td className={td}>{r.tool}</td>
                     <td className={td}>{r.provider}</td>
                     <td className={`${td} font-mono text-xs`}>{r.model}</td>
+                    <td className={td}>
+                      <BillingBadge billing={r.billing} />
+                    </td>
                     <td className={tdNum}>{fmtInt(r.inputTokens)}</td>
                     <td className={tdNum}>{fmtInt(r.outputTokens)}</td>
-                    <td className={tdNum}>{fmtUsd(r.costUsd)}</td>
+                    <td className={tdNum}>{r.billing === "api" ? fmtUsd(r.costUsd) : "n/a"}</td>
                   </tr>
                 ))
               )}
