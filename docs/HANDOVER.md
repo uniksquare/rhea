@@ -30,3 +30,8 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - 2026-09-11 start: `rhea-v2` at `e67830f`, typecheck 0 errors, 45/46 tests. Queue above. Starting T1 (harness e2e, real Claude via CLI on Max, dry-run) and T5 (client RBAC) in parallel.
 
 - T5 client RBAC: built, reviewed clean, merged into rhea-v2 (e18c2db). wt-2 now on feat/worktree-per-task (T4).
+
+- T1 harness e2e: SUCCESS. Claude Code headless via the CLI engine on your Max login edited yogaessence (`shared/sample.html`), committed on `task/51068036` (2 turns, session resumed), ledger rows recorded. Branch feat/harness-e2e under review, then merge.
+- F4: under `RHEA_HARNESS_AUTH=subscription` the ledger's `cost_usd` is the CLI's *nominal* API-equivalent price, not what you pay (Max covers it). Follow-up queued: record `billing=subscription` and cost 0 for those runs so the Usage page does not overstate spend.
+- F5: the harness defaulted to `claude-opus-5[1m]`, which eats Max quota fastest. Decision D4 (mine, veto if you disagree): default the edit harness to `claude-sonnet-4-5` unless the assignment sets `model`; plan_changes stays cheap too. Queued as a follow-up on the harness branch.
+- Gap queued: `scripts/run-task.ts` still uses the shared checkout (ensureBranch); switch it to `resolveTaskWorkspace` once T4 merges.
