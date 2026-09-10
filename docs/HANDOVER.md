@@ -37,3 +37,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - Gap queued: `scripts/run-task.ts` still uses the shared checkout (ensureBranch); switch it to `resolveTaskWorkspace` once T4 merges.
 
 - T1 merged into rhea-v2 (6861649) after review; LOW finding fixed (resume session id validated). T4 worktree-per-task built (feat/worktree-per-task) and under review. T7 Fly worker image started in wt-1 (feat/fly-worker). T2 task chat waits for T4 merge (it uses lib/worktree.ts).
+
+- T4 merged into rhea-v2 (e911783) after fixing 2 MED review findings (worktree call now fails the task cleanly; branch-already-checked-out in the shared workspace is handled by moving a clean shared checkout back to base). T2 task chat started in wt-2 (feat/task-chat): chat endpoint + task page + plan/edit modes + task_messages table + default harness model sonnet (D4) + subscription billing in ledger (F4) + run-task on worktrees. T7 Fly image still building in wt-1.
