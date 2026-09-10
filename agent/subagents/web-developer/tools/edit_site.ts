@@ -70,7 +70,13 @@ export default defineTool({
     const branch = branchForTask(taskId);
     // Each task works in its own git worktree so concurrent tasks never share
     // (or dirty) the assignment's main checkout.
-    const wt = await resolveTaskWorkspace(config, branch);
+    let wt: typeof config;
+    try {
+      wt = await resolveTaskWorkspace(config, branch);
+    } catch (err) {
+      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
+      throw err;
+    }
 
     const prompt = [
       `You are making a scoped change to a website repo.`,

@@ -124,6 +124,27 @@ export async function resolveTaskWorkspace<C extends WorkspaceConfig>(
   await git(["worktree", "prune"], workspacePath, { allowFail: true });
 
   if (await branchExists(workspacePath, branch)) {
+    // `git worktree add` refuses a branch that is already checked out
+    // somewhere. The common case is the shared checkout being left on a task
+    // branch by an older flow: move it back to the base branch if it is clean.
+    const base = config.baseBranch ?? "main";
+    const holder = await worktreeHoldingBranch(workspacePath, branch);
+    if (holder) {
+      const main = path.resolve(workspacePath);
+      if (path.resolve(holder) === main) {
+        const status = await git(["status", "--porcelain"], workspacePath, { allowFail: true });
+        if (status.stdout.trim() !== "") {
+          throw new Error(
+            `branch "${branch}" is checked out in the shared workspace with uncommitted changes; commit or clean it before retrying`,
+          );
+        }
+        await git(["checkout", base], workspacePath);
+      } else {
+        throw new Error(
+          `branch "${branch}" is already checked out at ${holder}; remove that worktree before retrying`,
+        );
+      }
+    }
     await git(["worktree", "add", wtPath, branch], workspacePath);
   } else {
     const base = config.baseBranch ?? "main";
@@ -144,4 +165,16 @@ export async function removeTaskWorkspace(config: WorkspaceConfig, branch: strin
     await git(["worktree", "remove", "--force", wtPath], workspacePath);
   }
   await git(["worktree", "prune"], workspacePath, { allowFail: true });
+}
+
+/** Path of the worktree (or the shared checkout) that has `branch` checked out, if any. */
+async function worktreeHoldingBranch(workspacePath: string, branch: string): Promise<string | null> {
+  const list = await git(["worktree", "list", "--porcelain"], workspacePath, { allowFail: true });
+  if (list.code !== 0) return null;
+  let current: string | null = null;
+  for (const line of list.stdout.split("\n")) {
+    if (line.startsWith("worktree ")) current = line.slice("worktree ".length).trim();
+    else if (line.trim() === `branch refs/heads/${branch}` && current) return current;
+  }
+  return null;
 }
