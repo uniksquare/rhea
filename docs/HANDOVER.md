@@ -35,3 +35,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - F4: under `RHEA_HARNESS_AUTH=subscription` the ledger's `cost_usd` is the CLI's *nominal* API-equivalent price, not what you pay (Max covers it). Follow-up queued: record `billing=subscription` and cost 0 for those runs so the Usage page does not overstate spend.
 - F5: the harness defaulted to `claude-opus-5[1m]`, which eats Max quota fastest. Decision D4 (mine, veto if you disagree): default the edit harness to `claude-sonnet-4-5` unless the assignment sets `model`; plan_changes stays cheap too. Queued as a follow-up on the harness branch.
 - Gap queued: `scripts/run-task.ts` still uses the shared checkout (ensureBranch); switch it to `resolveTaskWorkspace` once T4 merges.
+
+- T1 merged into rhea-v2 (6861649) after review; LOW finding fixed (resume session id validated). T4 worktree-per-task built (feat/worktree-per-task) and under review. T7 Fly worker image started in wt-1 (feat/fly-worker). T2 task chat waits for T4 merge (it uses lib/worktree.ts).
