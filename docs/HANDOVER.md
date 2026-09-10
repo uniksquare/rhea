@@ -28,3 +28,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 ## Status log (newest last)
 
 - 2026-09-11 start: `rhea-v2` at `e67830f`, typecheck 0 errors, 45/46 tests. Queue above. Starting T1 (harness e2e, real Claude via CLI on Max, dry-run) and T5 (client RBAC) in parallel.
+
+- T5 client RBAC: built, reviewed clean, merged into rhea-v2 (e18c2db). wt-2 now on feat/worktree-per-task (T4).
