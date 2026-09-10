@@ -7,7 +7,7 @@ import type { AssignmentConfig } from "../lib/assignment-types.ts";
 // construct without throwing, but neither connects until a query runs.
 process.env.DATABASE_URL ??= "postgresql://x:y@localhost:1/z";
 
-const { splitSecrets } = await import("../lib/platform.ts");
+const { splitSecrets, mergeSecrets, SecretValidationError } = await import("../lib/platform.ts");
 
 function ftpConfig(): AssignmentConfig {
   return {
@@ -104,4 +104,77 @@ test("splitSecrets output uses the field names resolveAssignmentConfig merges ba
   const { secrets: vercelSecrets } = splitSecrets(vercelConfig());
   assert.ok("publishPass" in ftpSecrets);
   assert.ok("vercelToken" in vercelSecrets);
+});
+
+// ── mergeSecrets ──
+
+test("mergeSecrets sets a new key and reports it as rotated", () => {
+  const { secrets, rotatedKeys } = mergeSecrets({}, { publishPass: "new-pass" });
+  assert.equal(secrets.publishPass, "new-pass");
+  assert.deepEqual(rotatedKeys, ["publishPass"]);
+});
+
+test("mergeSecrets overwrites an existing key", () => {
+  const { secrets, rotatedKeys } = mergeSecrets({ publishPass: "old" }, { publishPass: "new" });
+  assert.equal(secrets.publishPass, "new");
+  assert.deepEqual(rotatedKeys, ["publishPass"]);
+});
+
+test("mergeSecrets leaves undefined keys untouched and unrotated", () => {
+  const existing = { publishPass: "old", vercelToken: "tok" };
+  const { secrets, rotatedKeys } = mergeSecrets(existing, { publishPass: undefined, vercelToken: undefined });
+  assert.deepEqual(secrets, existing);
+  assert.deepEqual(rotatedKeys, []);
+});
+
+test("mergeSecrets clears a key when patched with an empty string", () => {
+  const { secrets, rotatedKeys } = mergeSecrets({ publishPass: "old", vercelToken: "tok" }, { publishPass: "" });
+  assert.ok(!("publishPass" in secrets));
+  assert.equal(secrets.vercelToken, "tok");
+  assert.deepEqual(rotatedKeys, ["publishPass"]);
+});
+
+test("mergeSecrets clearing an already-absent key is a no-op (not reported as rotated)", () => {
+  const { secrets, rotatedKeys } = mergeSecrets({}, { publishPass: "" });
+  assert.ok(!("publishPass" in secrets));
+  assert.deepEqual(rotatedKeys, []);
+});
+
+test("mergeSecrets never mutates existing or patch", () => {
+  const existing = { publishPass: "old" };
+  const patch = { publishPass: "new", vercelToken: "tok" };
+  const existingBefore = JSON.stringify(existing);
+  const patchBefore = JSON.stringify(patch);
+  mergeSecrets(existing, patch);
+  assert.equal(JSON.stringify(existing), existingBefore);
+  assert.equal(JSON.stringify(patch), patchBefore);
+});
+
+test("mergeSecrets rejects non-string values", () => {
+  assert.throws(() => mergeSecrets({}, { publishPass: 12345 as unknown as string }), SecretValidationError);
+});
+
+test("mergeSecrets rejects values containing CR, LF, or NUL", () => {
+  assert.throws(() => mergeSecrets({}, { publishPass: "bad\npass" }), SecretValidationError);
+  assert.throws(() => mergeSecrets({}, { publishPass: "bad\rpass" }), SecretValidationError);
+  assert.throws(() => mergeSecrets({}, { publishPass: "bad\0pass" }), SecretValidationError);
+});
+
+test("mergeSecrets rejects values over 4096 characters", () => {
+  assert.throws(() => mergeSecrets({}, { publishPass: "a".repeat(4097) }), SecretValidationError);
+});
+
+test("mergeSecrets accepts a value exactly at the 4096 character limit", () => {
+  const value = "a".repeat(4096);
+  const { secrets, rotatedKeys } = mergeSecrets({}, { publishPass: value });
+  assert.equal(secrets.publishPass, value);
+  assert.deepEqual(rotatedKeys, ["publishPass"]);
+});
+
+test("mergeSecrets can set and clear multiple keys in one call", () => {
+  const existing = { publishPass: "old", anthropicApiKey: "sk-xyz" };
+  const { secrets, rotatedKeys } = mergeSecrets(existing, { publishPass: "new", anthropicApiKey: "" });
+  assert.equal(secrets.publishPass, "new");
+  assert.ok(!("anthropicApiKey" in secrets));
+  assert.deepEqual(rotatedKeys.sort(), ["anthropicApiKey", "publishPass"]);
 });

@@ -194,6 +194,104 @@ export async function listAssignments(orgId: string) {
   return rows.map(stripSecretsEnc);
 }
 
+/** Max length of a single secret value (matches TASK_ERROR_MAX-scale limits elsewhere). */
+const SECRET_VALUE_MAX = 4096;
+
+export class SecretValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SecretValidationError";
+  }
+}
+
+/**
+ * Merge a patch of secret keys onto an existing secrets object.
+ *
+ * - A key that is `undefined` in the patch is left untouched.
+ * - A key set to `""` (empty string) clears that key (removed from the result).
+ * - Any other value must be a string, free of CR/LF/NUL, and at most
+ *   SECRET_VALUE_MAX characters; anything else throws SecretValidationError.
+ *
+ * Pure: never mutates `existing` or `patch`. Returns the merged secrets plus
+ * the list of keys that were actually changed (set or cleared).
+ */
+export function mergeSecrets(
+  existing: AssignmentSecrets,
+  patch: Record<string, unknown>
+): { secrets: AssignmentSecrets; rotatedKeys: string[] } {
+  const secrets: AssignmentSecrets = { ...existing };
+  const rotatedKeys: string[] = [];
+
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+
+    if (typeof value !== "string") {
+      throw new SecretValidationError(`invalid value for "${key}": must be a string`);
+    }
+    if (/[\r\n\0]/.test(value)) {
+      throw new SecretValidationError(`invalid value for "${key}": control characters are not allowed`);
+    }
+    if (value.length > SECRET_VALUE_MAX) {
+      throw new SecretValidationError(`invalid value for "${key}": exceeds ${SECRET_VALUE_MAX} characters`);
+    }
+
+    if (value.length === 0) {
+      if (key in secrets) {
+        delete secrets[key];
+        rotatedKeys.push(key);
+      }
+    } else {
+      secrets[key] = value;
+      rotatedKeys.push(key);
+    }
+  }
+
+  return { secrets, rotatedKeys };
+}
+
+/**
+ * Rotate (set/clear) encrypted secrets on an Assignment, org-scoped.
+ *
+ * Loads the row, decrypts any existing secrets, merges in the provided keys
+ * via mergeSecrets (undefined keys untouched, "" clears a key), re-encrypts,
+ * and bumps updated_at. Never returns the decrypted secrets, only which keys
+ * were rotated.
+ */
+export async function updateAssignmentSecrets(
+  id: string,
+  orgId: string,
+  secrets: { publishPass?: string; vercelToken?: string; [key: string]: unknown }
+): Promise<{ assignmentId: string; rotatedKeys: string[] }> {
+  const row = await prisma.assignment.findFirst({
+    where: { assignmentId: id, orgId },
+  });
+  if (!row) throw new Error("Assignment not found");
+
+  let existing: AssignmentSecrets = {};
+  if (row.secretsEnc) {
+    const plain = decrypt(row.secretsEnc);
+    try {
+      const parsed = JSON.parse(plain);
+      if (parsed && typeof parsed === "object") existing = parsed as AssignmentSecrets;
+    } catch {
+      // Legacy rows may have stored a bare string; treat it as the publish pass.
+      existing = { publishPass: plain };
+    }
+  }
+
+  const { secrets: merged, rotatedKeys } = mergeSecrets(existing, secrets);
+
+  const hasSecrets = Object.keys(merged).length > 0;
+  const secretsEnc = hasSecrets ? encrypt(JSON.stringify(merged)) : null;
+
+  await prisma.assignment.update({
+    where: { assignmentId: row.assignmentId },
+    data: { secretsEnc, updatedAt: new Date() },
+  });
+
+  return { assignmentId: row.assignmentId, rotatedKeys };
+}
+
 // ── Tasks ──
 
 export async function createTask(params: {
