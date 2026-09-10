@@ -40,15 +40,46 @@ const CHILD_ENV_ALLOWLIST = [
   "CLAUDE_MODEL",
 ] as const;
 
-function childEnv(): NodeJS.ProcessEnv {
+export type HarnessEngine = "sdk" | "cli";
+
+/**
+ * Pick the engine from the environment. `RHEA_HARNESS_ENGINE=cli` spawns the
+ * installed `claude` binary directly (so the operator's Claude Max login is
+ * used); anything else defaults to the Agent SDK. Pure; exported for tests.
+ */
+export function selectEngine(env: NodeJS.ProcessEnv): HarnessEngine {
+  const v = env.RHEA_HARNESS_ENGINE?.trim().toLowerCase();
+  return v === "cli" || v === "sdk" ? v : "sdk";
+}
+
+/**
+ * True when the run should authenticate with the operator's Claude
+ * subscription (CLI login) rather than an API key. Pure; exported for tests.
+ */
+export function usesSubscriptionAuth(env: NodeJS.ProcessEnv): boolean {
+  return env.RHEA_HARNESS_AUTH?.trim().toLowerCase() === "subscription";
+}
+
+/**
+ * Build the allowlisted child env from `source`. With subscription auth the
+ * API key is dropped so the CLI falls back to its stored login. Pure;
+ * exported for tests.
+ */
+export function buildChildEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   // Cast: Next augments ProcessEnv with a required NODE_ENV, which we
   // deliberately do not forward.
   const env = {} as NodeJS.ProcessEnv;
+  const subscription = usesSubscriptionAuth(source);
   for (const key of CHILD_ENV_ALLOWLIST) {
-    const v = process.env[key];
+    if (subscription && key === "ANTHROPIC_API_KEY") continue;
+    const v = source[key];
     if (v !== undefined) env[key] = v;
   }
   return env;
+}
+
+function childEnv(): NodeJS.ProcessEnv {
+  return buildChildEnv(process.env);
 }
 
 /** Tools a read-only (planning) run may use. Strict subset of SAFE_TOOLS. */
@@ -140,7 +171,11 @@ function provider(): HarnessResult["provider"] {
   return "anthropic";
 }
 
-function toResult(raw: RawResult, requestedModel: string | undefined): HarnessResult {
+function toResult(
+  raw: RawResult,
+  requestedModel: string | undefined,
+  engine: HarnessEngine
+): HarnessResult {
   const ok = raw.type === "result" && raw.subtype === "success" && !raw.is_error;
   const output =
     raw.result ??
@@ -153,7 +188,7 @@ function toResult(raw: RawResult, requestedModel: string | undefined): HarnessRe
     usage: mapUsage(raw.usage, raw.total_cost_usd),
     provider: provider(),
     model: requestedModel ?? usedModel ?? "default",
-    raw,
+    raw: { engine, ...raw },
   };
 }
 
@@ -166,8 +201,40 @@ type RunOpts = {
   permissionMode: "plan" | "acceptEdits";
   model?: string;
   maxTurns: number;
+  /** Continue an earlier headless session (SDK `resume`, CLI `--resume`). */
+  resumeSessionId?: string;
   env: NodeJS.ProcessEnv;
 };
+
+/** Argv for `claude` (without the binary). Pure; exported for tests. */
+export function buildCliArgs(opts: {
+  prompt: string;
+  allowedTools: string[];
+  disallowedTools: string[];
+  permissionMode: "plan" | "acceptEdits";
+  model?: string;
+  resumeSessionId?: string;
+}): string[] {
+  const args = [
+    "-p",
+    opts.prompt,
+    "--output-format",
+    "json",
+    "--allowedTools",
+    opts.allowedTools.join(","),
+    // The installed claude CLI (2.1.x) supports --disallowedTools; see
+    // `claude --help`. Deny always wins over allow.
+    "--disallowedTools",
+    opts.disallowedTools.join(","),
+    "--permission-mode",
+    opts.permissionMode,
+  ];
+  // Note: the installed `claude` CLI has no --max-turns flag, so maxTurns is
+  // only enforced on the SDK path.
+  if (opts.model) args.push("--model", opts.model);
+  if (opts.resumeSessionId) args.push("--resume", opts.resumeSessionId);
+  return args;
+}
 
 async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
   // Non-literal specifier so the module resolves at runtime only; a missing
@@ -187,6 +254,7 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
       maxTurns: opts.maxTurns,
       env: opts.env,
       ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.resumeSessionId ? { resume: opts.resumeSessionId } : {}),
     },
   });
   let last: RawResult | undefined;
@@ -194,27 +262,11 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
     if (msg?.type === "result") last = msg;
   }
   if (!last) throw new Error("harness: SDK query ended without a result message");
-  return toResult(last, opts.model);
+  return toResult(last, opts.model, "sdk");
 }
 
 async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
-  const args = [
-    "-p",
-    opts.prompt,
-    "--output-format",
-    "json",
-    "--allowedTools",
-    opts.allowedTools.join(","),
-    // The installed claude CLI (2.1.x) supports --disallowedTools; see
-    // `claude --help`. Deny always wins over allow.
-    "--disallowedTools",
-    opts.disallowedTools.join(","),
-    "--permission-mode",
-    opts.permissionMode,
-  ];
-  // Note: the installed `claude` CLI has no --max-turns flag, so maxTurns is
-  // only enforced on the SDK path.
-  if (opts.model) args.push("--model", opts.model);
+  const args = buildCliArgs(opts);
 
   let stdout: string;
   try {
@@ -238,23 +290,28 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
   } catch {
     throw new Error("harness: could not parse claude CLI JSON output");
   }
-  return toResult(raw, opts.model);
+  return toResult(raw, opts.model, "cli");
 }
 
 /**
  * Run Claude Code headless, scoped to `workspacePath`.
  *
- * Uses the Agent SDK `query()` when `@anthropic-ai/claude-agent-sdk` is
- * installed; otherwise spawns `claude -p ... --output-format json`.
+ * Engine: `opts.engine` or `selectEngine(process.env)`. "sdk" uses the Agent
+ * SDK `query()` when `@anthropic-ai/claude-agent-sdk` is installed and falls
+ * back to the CLI otherwise; "cli" spawns `claude -p ... --output-format json`
+ * directly. `resumeSessionId` continues an earlier session (SDK `resume`,
+ * CLI `--resume`), which is how a Task becomes a multi-turn headless session.
  *
  * The child gets a minimal allowlisted env (see CHILD_ENV_ALLOWLIST), never
- * the full process.env. `allowedTools` is intersected with SAFE_TOOLS, so
- * tenant config can only narrow the tool set; Bash/WebFetch/WebSearch are
- * always passed as disallowed (see resolveToolPolicy). With `readOnly`, the
- * run uses permission mode "plan", allows only Read/Glob/Grep, and denies
- * every mutating tool. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
+ * the full process.env. With `RHEA_HARNESS_AUTH=subscription` the child does
+ * not receive ANTHROPIC_API_KEY, so the CLI uses the operator's stored login.
+ * `allowedTools` is intersected with SAFE_TOOLS, so tenant config can only
+ * narrow the tool set; Bash/WebFetch/WebSearch are always passed as
+ * disallowed (see resolveToolPolicy). With `readOnly`, the run uses
+ * permission mode "plan", allows only Read/Glob/Grep, and denies every
+ * mutating tool. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
  * "vertex"), CLAUDE_CODE_USE_BEDROCK, plus whatever the SDK/CLI reads for
- * auth. Secrets are never logged.
+ * auth. Secrets are never logged. `raw.engine` records which engine ran.
  */
 export async function runHarness(opts: {
   workspacePath: string;
@@ -264,6 +321,8 @@ export async function runHarness(opts: {
   readOnly?: boolean;
   model?: string;
   maxTurns?: number;
+  engine?: HarnessEngine;
+  resumeSessionId?: string;
 }): Promise<HarnessResult> {
   const policy = resolveToolPolicy({
     allowedTools: opts.allowedTools,
@@ -278,8 +337,11 @@ export async function runHarness(opts: {
     permissionMode: opts.readOnly ? "plan" : "acceptEdits",
     model: opts.model,
     maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
+    resumeSessionId: opts.resumeSessionId,
     env: childEnv(),
   };
+  const engine = opts.engine ?? selectEngine(process.env);
+  if (engine === "cli") return runViaCli(normalized);
   try {
     return await runViaSdk(normalized);
   } catch (err) {

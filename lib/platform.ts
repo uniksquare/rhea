@@ -216,9 +216,11 @@ export async function updateTask(
     error?: string;
     /** Structured plan produced by plan_changes; stored as JSON. */
     plan?: unknown;
+    /** Headless harness session id, so a later turn can resume it. */
+    sessionId?: string;
   }
 ) {
-  const { status, branch, previewUrl, prUrl, publishedUrl, error, plan } = patch;
+  const { status, branch, previewUrl, prUrl, publishedUrl, error, plan, sessionId } = patch;
   const result = await prisma.task.updateMany({
     where: { taskId: id, orgId },
     data: {
@@ -227,6 +229,7 @@ export async function updateTask(
       previewUrl,
       prUrl,
       publishedUrl,
+      sessionId,
       error: error === undefined ? undefined : error.slice(0, TASK_ERROR_MAX),
       plan: plan === undefined ? undefined : (plan as Prisma.InputJsonValue),
       updatedAt: new Date(),
