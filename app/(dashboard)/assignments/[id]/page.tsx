@@ -103,7 +103,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
 
       <div className="space-y-[8px]">
         <h2 className="font-lustria text-xl text-graphite-ink">Tasks</h2>
-        <AssignmentTasks tasks={tasks} userRole={session.user.role} canDiscard={canDiscard} />
+        <AssignmentTasks tasks={tasks} assignmentId={id} userRole={session.user.role} canDiscard={canDiscard} />
       </div>
     </div>
   );

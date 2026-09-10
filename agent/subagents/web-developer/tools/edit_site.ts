@@ -1,6 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { runHarness } from "../../../../lib/harness.ts";
+import { runHarness, harnessBilling } from "../../../../lib/harness.ts";
 import { commitAll } from "../../../../lib/github.ts";
 import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
 import {
@@ -125,6 +125,7 @@ export default defineTool({
       cacheReadTokens: harness.usage.cacheReadTokens,
       cacheWriteTokens: harness.usage.cacheWriteTokens,
       costUsd: harness.usage.costUsd,
+      billing: harnessBilling(process.env),
     });
 
     return {

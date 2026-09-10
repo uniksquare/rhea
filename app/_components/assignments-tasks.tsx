@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Loader2, Rocket, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Rocket, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ export interface TaskRow {
 
 interface AssignmentTasksProps {
   tasks: TaskRow[];
+  /** When set, each row links to its task page (/assignments/<id>/tasks/<taskId>). */
+  assignmentId?: string;
   userRole?: string;
   /** Whether the current user may discard tasks (role >= OPERATOR). Falls back to
    *  computing from userRole when the page does not pass it explicitly. */
@@ -84,7 +87,7 @@ function LinkOut({ href, label }: { href: string | null; label: string }) {
   );
 }
 
-export function AssignmentTasks({ tasks, userRole, canDiscard: canDiscardProp }: AssignmentTasksProps) {
+export function AssignmentTasks({ tasks, assignmentId, userRole, canDiscard: canDiscardProp }: AssignmentTasksProps) {
   const router = useRouter();
   const canPublish = userRole === "OWNER" || userRole === "ADMIN";
   const canDiscard = canDiscardProp ?? hasMinRole(userRole as Role, "OPERATOR");
@@ -149,9 +152,19 @@ export function AssignmentTasks({ tasks, userRole, canDiscard: canDiscardProp }:
                         </span>
                       </td>
                       <td className="py-16 px-24 max-w-md">
-                        <span className="text-sm text-graphite-ink" title={t.request}>
-                          {truncate(t.request)}
-                        </span>
+                        {assignmentId ? (
+                          <Link
+                            href={`/assignments/${assignmentId}/tasks/${t.taskId}`}
+                            className="text-sm text-graphite-ink hover:text-iris-violet transition-colors"
+                            title={t.request}
+                          >
+                            {truncate(t.request)}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-graphite-ink" title={t.request}>
+                            {truncate(t.request)}
+                          </span>
+                        )}
                         {t.error && (
                           <p className="mt-[4px] text-xs text-rose-700" title={t.error}>
                             {truncate(t.error, 120)}
@@ -177,6 +190,16 @@ export function AssignmentTasks({ tasks, userRole, canDiscard: canDiscardProp }:
                       <td className="py-16 px-24 text-xs text-slate whitespace-nowrap">{formatDate(t.createdAt)}</td>
                       <td className="py-16 px-24 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-[8px]">
+                          {assignmentId && (
+                            <Link
+                              href={`/assignments/${assignmentId}/tasks/${t.taskId}`}
+                              className={`${rowBtn} bg-paper-white border-mist text-slate hover:text-iris-violet hover:border-iris-violet/30`}
+                              title="Open the task chat"
+                            >
+                              <MessageSquare className="size-[12px]" />
+                              Open
+                            </Link>
+                          )}
                           {canPublish && (
                             <button
                               type="button"

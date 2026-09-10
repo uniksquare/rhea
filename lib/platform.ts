@@ -265,7 +265,47 @@ export async function listTasks(orgId: string, assignmentId?: string) {
   });
 }
 
+// ── Task messages (client-facing chat thread) ──
+
+export type TaskMessageRole = "user" | "assistant" | "system";
+export type TaskMessageMode = "plan" | "edit";
+
+/** Max content length stored per message. */
+const TASK_MESSAGE_MAX = 20000;
+
+/** Append one turn to a Task's thread. Content is truncated to 20000 chars. */
+export async function addTaskMessage(params: {
+  orgId: string;
+  taskId: string;
+  role: TaskMessageRole;
+  content: string;
+  mode?: TaskMessageMode;
+  usage?: unknown;
+}) {
+  const { orgId, taskId, role, content, mode, usage } = params;
+  return prisma.taskMessage.create({
+    data: {
+      orgId,
+      taskId,
+      role,
+      content: content.slice(0, TASK_MESSAGE_MAX),
+      mode,
+      usage: usage === undefined ? undefined : (usage as Prisma.InputJsonValue),
+    },
+  });
+}
+
+/** A Task's thread, oldest first, scoped to orgId. */
+export async function listTaskMessages(taskId: string, orgId: string) {
+  return prisma.taskMessage.findMany({
+    where: { taskId, orgId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 // ── Usage ledger ──
+
+export type UsageBilling = "api" | "subscription";
 
 export async function recordUsage(params: {
   orgId: string;
@@ -280,6 +320,8 @@ export async function recordUsage(params: {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   costUsd: number | string | Prisma.Decimal;
+  /** "api" (metered) or "subscription" (operator's plan; costUsd is 0). Default "api". */
+  billing?: UsageBilling;
 }) {
   const {
     orgId,
@@ -294,6 +336,7 @@ export async function recordUsage(params: {
     cacheReadTokens,
     cacheWriteTokens,
     costUsd,
+    billing,
   } = params;
 
   return prisma.usageLedger.create({
@@ -310,6 +353,7 @@ export async function recordUsage(params: {
       cacheReadTokens,
       cacheWriteTokens,
       costUsd: new Prisma.Decimal(costUsd),
+      billing: billing ?? "api",
     },
   });
 }

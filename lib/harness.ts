@@ -41,6 +41,41 @@ const CHILD_ENV_ALLOWLIST = [
 ] as const;
 
 export type HarnessEngine = "sdk" | "cli";
+export type HarnessBilling = "api" | "subscription";
+
+/**
+ * Model used when the caller passes none. Without an explicit `--model` the
+ * CLI/SDK falls back to its own default (currently Opus), which is the most
+ * expensive option; `RHEA_HARNESS_DEFAULT_MODEL` overrides the built-in
+ * Sonnet default. Pure; exported for tests.
+ */
+export const BUILT_IN_DEFAULT_MODEL = "claude-sonnet-4-5";
+export function resolveModel(requested: string | undefined, env: NodeJS.ProcessEnv): string {
+  const r = requested?.trim();
+  if (r) return r;
+  const d = env.RHEA_HARNESS_DEFAULT_MODEL?.trim();
+  return d || BUILT_IN_DEFAULT_MODEL;
+}
+
+/**
+ * How a run is billed: "subscription" when the child authenticates with the
+ * operator's Claude plan (RHEA_HARNESS_AUTH=subscription), "api" otherwise.
+ * Pure; exported for tests.
+ */
+export function harnessBilling(env: NodeJS.ProcessEnv): HarnessBilling {
+  return usesSubscriptionAuth(env) ? "subscription" : "api";
+}
+
+/**
+ * Cost to record for a run. Subscription runs are not metered, so the
+ * reported dollar figure is nominal and must not be charged: it is zeroed
+ * here (callers can still read it from `raw.nominalCostUsd`). Pure; exported
+ * for tests.
+ */
+export function chargeableCost(costUsd: number | undefined, billing: HarnessBilling): number {
+  if (billing === "subscription") return 0;
+  return costUsd ?? 0;
+}
 
 /**
  * Pick the engine from the environment. `RHEA_HARNESS_ENGINE=cli` spawns the
@@ -138,7 +173,7 @@ type RawUsage = {
   cache_creation_input_tokens?: number;
 };
 
-type RawResult = {
+export type RawResult = {
   type?: string;
   subtype?: string;
   is_error?: boolean;
@@ -171,10 +206,16 @@ function provider(): HarnessResult["provider"] {
   return "anthropic";
 }
 
-function toResult(
+/**
+ * Map a raw SDK/CLI result message to a HarnessResult. With subscription
+ * billing `usage.costUsd` is 0 and the nominal figure moves to
+ * `raw.nominalCostUsd`. Pure; exported for tests.
+ */
+export function toResult(
   raw: RawResult,
   requestedModel: string | undefined,
-  engine: HarnessEngine
+  engine: HarnessEngine,
+  billing: HarnessBilling = "api"
 ): HarnessResult {
   const ok = raw.type === "result" && raw.subtype === "success" && !raw.is_error;
   const output =
@@ -185,10 +226,10 @@ function toResult(
     ok,
     output,
     sessionId: raw.session_id,
-    usage: mapUsage(raw.usage, raw.total_cost_usd),
+    usage: mapUsage(raw.usage, chargeableCost(raw.total_cost_usd, billing)),
     provider: provider(),
     model: requestedModel ?? usedModel ?? "default",
-    raw: { engine, ...raw },
+    raw: { engine, billing, nominalCostUsd: raw.total_cost_usd ?? 0, ...raw },
   };
 }
 
@@ -204,6 +245,7 @@ type RunOpts = {
   /** Continue an earlier headless session (SDK `resume`, CLI `--resume`). */
   resumeSessionId?: string;
   env: NodeJS.ProcessEnv;
+  billing: HarnessBilling;
 };
 
 /** Argv for `claude` (without the binary). Pure; exported for tests. */
@@ -262,7 +304,7 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
     if (msg?.type === "result") last = msg;
   }
   if (!last) throw new Error("harness: SDK query ended without a result message");
-  return toResult(last, opts.model, "sdk");
+  return toResult(last, opts.model, "sdk", opts.billing);
 }
 
 async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
@@ -290,7 +332,7 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
   } catch {
     throw new Error("harness: could not parse claude CLI JSON output");
   }
-  return toResult(raw, opts.model, "cli");
+  return toResult(raw, opts.model, "cli", opts.billing);
 }
 
 /**
@@ -312,6 +354,11 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
  * mutating tool. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
  * "vertex"), CLAUDE_CODE_USE_BEDROCK, plus whatever the SDK/CLI reads for
  * auth. Secrets are never logged. `raw.engine` records which engine ran.
+ *
+ * Model: `opts.model`, else RHEA_HARNESS_DEFAULT_MODEL, else Sonnet (see
+ * resolveModel); the child never runs on its own default. Billing: with
+ * RHEA_HARNESS_AUTH=subscription `usage.costUsd` is 0 (the nominal figure is
+ * kept in `raw.nominalCostUsd`); see harnessBilling / chargeableCost.
  */
 export async function runHarness(opts: {
   workspacePath: string;
@@ -335,10 +382,12 @@ export async function runHarness(opts: {
     allowedTools: policy.allowed,
     disallowedTools: policy.disallowed,
     permissionMode: opts.readOnly ? "plan" : "acceptEdits",
-    model: opts.model,
+    // Always pass an explicit model so the child never falls back to Opus.
+    model: resolveModel(opts.model, process.env),
     maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
     resumeSessionId: opts.resumeSessionId,
     env: childEnv(),
+    billing: harnessBilling(process.env),
   };
   const engine = opts.engine ?? selectEngine(process.env);
   if (engine === "cli") return runViaCli(normalized);
