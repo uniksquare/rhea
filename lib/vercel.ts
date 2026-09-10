@@ -26,9 +26,11 @@ function parseDeploymentUrl(text: string): string | undefined {
 
 /**
  * Run `vercel deploy` in `cwd` (the site directory) and return the deployment
- * URL. Auth is VERCEL_TOKEN from the process env for now; org/project come
- * from the target with the env as fallback. The child gets an allowlisted env
- * only, and the token is never logged or included in thrown errors.
+ * URL. Auth is target.token (per-assignment, decrypted from secrets_enc) with
+ * VERCEL_TOKEN from the process env as a fallback; org/project come from the
+ * target with the env as fallback. The child gets an allowlisted env only,
+ * and the token (whichever source it came from) is never logged or included
+ * in thrown errors.
  */
 export async function deployWithVercel({
   cwd,
@@ -44,9 +46,9 @@ export async function deployWithVercel({
   if (target.orgId !== undefined) assertSafeValue("orgId", target.orgId, "plain");
   if (target.projectId !== undefined) assertSafeValue("projectId", target.projectId, "plain");
 
-  const token = process.env.VERCEL_TOKEN;
+  const token = target.token ?? process.env.VERCEL_TOKEN;
   if (!token) {
-    throw new Error("VERCEL_TOKEN not set; per-assignment Vercel tokens are a TODO in platform secrets");
+    throw new Error("no Vercel token: set publishTarget.token (per-assignment) or VERCEL_TOKEN");
   }
 
   // Allowlisted env only: nothing else from process.env leaks into the CLI.

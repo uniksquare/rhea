@@ -24,6 +24,8 @@ export type PublishTarget =
       scope?: string;
       /** Branch whose merges Vercel's Git integration deploys to production. Default "main". */
       prodBranch?: string;
+      /** Per-assignment Vercel token; falls back to VERCEL_TOKEN when unset. Encrypted at rest, never in the redacted config. */
+      token?: string;
     };
 
 /** Everything a single assignment needs to run, preview, and publish. */

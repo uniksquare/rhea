@@ -66,6 +66,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "hostinger-ftp target needs secrets.pass" }, { status: 400 });
   }
 
+  // The Vercel token travels in `secrets.vercelToken`, or (for convenience)
+  // inline on config.publishTarget.token; either way it gets folded into
+  // publishTarget so createAssignment encrypts it and strips it from the
+  // persisted config. It is optional: deployWithVercel falls back to
+  // VERCEL_TOKEN when unset.
+  const vercelTokenFromSecrets =
+    typeof secrets?.vercelToken === "string" && secrets.vercelToken.length > 0 ? secrets.vercelToken : undefined;
+  const vercelTokenInline =
+    typeof (target as { token?: unknown }).token === "string" ? ((target as { token?: string }).token as string) : undefined;
+  const vercelToken = vercelTokenFromSecrets ?? vercelTokenInline;
+
   // Validate before anything touches the DB. The validator's messages never
   // echo credentials, so they are safe to return as-is.
   let fullConfig: AssignmentConfig;
@@ -73,7 +84,11 @@ export async function POST(request: Request) {
     fullConfig = validateAssignmentConfig({
       ...config,
       publishTarget:
-        target.type === "hostinger-ftp" ? { ...(target as object), pass } : (target as object),
+        target.type === "hostinger-ftp"
+          ? { ...(target as object), pass }
+          : target.type === "vercel"
+            ? { ...(target as object), ...(vercelToken ? { token: vercelToken } : {}) }
+            : (target as object),
     });
   } catch (err) {
     if (err instanceof AssignmentConfigError) {
@@ -82,8 +97,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid assignment config" }, { status: 400 });
   }
 
-  // `pass` is consumed above; keep any other extra secrets.
-  const { pass: _pass, ...extraSecrets } = secrets ?? {};
+  // `pass` and `vercelToken` are consumed above (folded into publishTarget,
+  // then stripped and encrypted by createAssignment); keep any other extra secrets.
+  const { pass: _pass, vercelToken: _vercelToken, ...extraSecrets } = secrets ?? {};
 
   try {
     const row = await createAssignment({

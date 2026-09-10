@@ -35,11 +35,11 @@ export type TaskStatus =
 /** Max length of the free-text error stored on a Task. */
 const TASK_ERROR_MAX = 500;
 
-/** publishTarget as stored in the DB and returned by getAssignment: no `pass`. */
+/** publishTarget as stored in the DB and returned by getAssignment: no `pass`, no `token`. */
 export type RedactedPublishTarget = PublishTarget extends infer T
   ? T extends { pass: string }
     ? Omit<T, "pass">
-    : T
+    : Omit<T, "token">
   : never;
 
 /** AssignmentConfig with every secret field removed. Safe to log and return. */
@@ -51,6 +51,8 @@ export type RedactedAssignmentConfig = Omit<AssignmentConfig, "publishTarget"> &
 type AssignmentSecrets = {
   /** publishTarget.pass for FTP-style targets. */
   publishPass?: string;
+  /** publishTarget.token for Vercel targets. */
+  vercelToken?: string;
   [key: string]: unknown;
 };
 
@@ -58,19 +60,26 @@ type AssignmentSecrets = {
  * Split an incoming config into the redacted config that gets persisted and
  * the secrets that get encrypted. Never mutates the input.
  */
-function splitSecrets(
+export function splitSecrets(
   config: AssignmentConfig,
   extra?: Record<string, unknown>
 ): { redacted: RedactedAssignmentConfig; secrets: AssignmentSecrets } {
   const secrets: AssignmentSecrets = { ...(extra ?? {}) };
-  const target = config.publishTarget as PublishTarget & { pass?: string };
+  const target = config.publishTarget as (PublishTarget & Record<string, unknown>) | undefined | null;
   let redactedTarget: RedactedPublishTarget;
-  if (target && typeof target === "object" && "pass" in target) {
-    const { pass, ...rest } = target;
-    if (typeof pass === "string" && pass.length > 0) secrets.publishPass = pass;
+  if (target && typeof target === "object") {
+    const rest: Record<string, unknown> = { ...target };
+    if (typeof rest.pass === "string") {
+      if (rest.pass.length > 0) secrets.publishPass = rest.pass;
+      delete rest.pass;
+    }
+    if (typeof rest.token === "string") {
+      if (rest.token.length > 0) secrets.vercelToken = rest.token;
+      delete rest.token;
+    }
     redactedTarget = rest as RedactedPublishTarget;
   } else {
-    redactedTarget = target as RedactedPublishTarget;
+    redactedTarget = target as unknown as RedactedPublishTarget;
   }
   return {
     redacted: { ...config, publishTarget: redactedTarget },
@@ -170,7 +179,9 @@ export async function resolveAssignmentConfig(
   const publishTarget: PublishTarget =
     target.type === "hostinger-ftp"
       ? ({ ...target, pass: secrets.publishPass ?? "" } as PublishTarget)
-      : (target as PublishTarget);
+      : target.type === "vercel"
+        ? ({ ...target, ...(secrets.vercelToken ? { token: secrets.vercelToken } : {}) } as PublishTarget)
+        : (target as PublishTarget);
 
   return { ...redacted, publishTarget };
 }
