@@ -61,3 +61,40 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - T10 merged (dc47b5c): soft discard now removes the task worktree (branch kept; uncommitted edits in that worktree are dropped, by design) and the Usage page splits billed API cost from subscription-covered tokens. T12 started in wt-1 (feat/task-revive): revive a discarded task (discarded -> planning, worktree re-created) + a /tasks history page with filters. T11 secrets rotation still building in wt-2.
 
 - T11 secrets rotation merged (b6557e8), review clean (fails closed on corrupt ciphertext; rotated FTP pass used on next preview/publish). Minor note: the PATCH does not cross-check the key against the target type; the UI only sends the matching one. Waiting on T12, then the final whole-diff review.
+
+## Morning summary (read this first)
+
+### What got built overnight (all on `rhea-v2`, 49 commits ahead of `main`, typecheck clean, 158 tests passing)
+
+1. **The Web Developer role now works end to end on your Claude Max login.** A real headless Claude Code run edited yogaessence, committed on a task branch, recorded usage, and resumed the same session for a second turn (T1). Default model is now `claude-sonnet-4-5` unless the assignment sets one (D4).
+2. **Task chat (the client-facing UI).** Each Task is a headless session: `/assignments/<id>/tasks/<taskId>` has a chat with "Ask for a plan" (read-only, plan stored on the task) and "Make the change" (edits + commit), plus Build preview, Publish (sign-off), Discard. Endpoints: `POST /api/tasks/:id/message` (plan|edit), `GET .../messages`, `POST .../preview`, `POST .../publish`, `POST .../discard`, `POST .../revive`, `POST /api/tasks`.
+3. **Isolation and safety.** Every Task runs in its own git worktree (no shared-checkout races). The harness is path-scoped to `siteDir` and cannot read `../.env` or write outside (empirically verified). Child env is allowlisted; Bash/WebFetch are never available. Publishing claims the task atomically; concurrent messages get 409.
+4. **Tenancy.** New `CLIENT` role (request + preview + discard, never publish or manage). Assignments/Tasks/secrets are org-scoped everywhere.
+5. **Secrets.** FTP password and Vercel token live encrypted in `secretsEnc`; redacted configs everywhere; `PATCH /api/assignments/:id/secrets` rotates them (OWNER/ADMIN).
+6. **Pages.** `/assignments`, `/assignments/<id>`, task page, `/approvals` (everything waiting for sign-off), `/tasks` (history with filters + Revive for discarded), `/usage` (billed API cost vs subscription-covered tokens), `/roles`.
+7. **Soft discard, fully.** Discard keeps the branch, frees the worktree; Revive brings it back (discarded -> planning, worktree re-created).
+8. **Ops.** `Dockerfile.worker` + `fly.worker.toml` + `docs/deploy-worker.md` (image builds; entrypoint fixes the Fly volume ownership). `docs/telegram-channel.md` design (thin webhook first, no API key needed). Eve routing (`list_assignments` tool) ready for when an LLM key exists; subagents inherit orgId (verified in Eve dist).
+
+### Decisions I made (veto any)
+- D1 Web Developer runs on Claude Code headless (Max), not Eve's model. D2 task order as executed. D3 local merges only, nothing pushed. D4 default harness model sonnet 4.5.
+
+### Flags for you: F1 to F6 above. Nothing was deployed, pushed, or sent anywhere.
+
+### Morning verification checklist (10 minutes, no browser needed for the first three)
+```bash
+cd ~/Desktop/gitrepos/rhea && eval "$(fnm env)" && fnm use 24
+docker start rhea-pg 2>/dev/null; npm run typecheck && npm test
+git log --oneline main..rhea-v2 | head -60
+```
+Then (browser, your call): `npm run dev`, sign in as dev@local.test, open /assignments -> Yoga Essence Site -> a task -> try "Ask for a plan" (uses your Max login via the CLI engine: set `RHEA_HARNESS_ENGINE=cli` and `RHEA_HARNESS_AUTH=subscription` in `.env.local` first if not present).
+
+CLI alternative for the same thing (dry-run, no deploy):
+```bash
+RHEA_HARNESS_ENGINE=cli RHEA_HARNESS_AUTH=subscription npx tsx scripts/run-task.ts --assignment 2fea37fe-650d-498b-9da2-b8e7eb7c6c7c --request "add a short welcome line under the hero heading in shared/7-points-of-mind-training-meditation-india.html" --harness --engine cli
+```
+
+### First real preview on Hostinger (only when you are ready)
+Append `--deploy` to the command above, or click "Build preview" on the task page. It mirrors the task worktree's `shared/` to `/shared/preview/<branch-slug>/` on the live server and sets the task to previewed. Publish then copies to live after sign-off.
+
+### When satisfied
+`git push -u origin rhea-v2` (I did not push). The two worktrees `../rhea-wt-1` and `../rhea-wt-2` are detached at rhea-v2 and clean; remove with `git worktree remove ../rhea-wt-1 && git worktree remove ../rhea-wt-2`.
