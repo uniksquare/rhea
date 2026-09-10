@@ -57,3 +57,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - T9 per-assignment Vercel token built (feat/vercel-token, 129 tests) and T10 discard worktree cleanup + usage billing split built (feat/gaps-a, 100 tests); both under review. After these: secrets rotation endpoint, then a final whole-diff review of rhea-v2 vs main, then the final summary below.
 
 - T9 Vercel token merged (38a05f4), review clean (token never in config/responses/errors; single decrypt path). T11 secrets rotation endpoint started in wt-2 (feat/secrets-rotation). T10 under review in wt-1.
+
+- T10 merged (dc47b5c): soft discard now removes the task worktree (branch kept; uncommitted edits in that worktree are dropped, by design) and the Usage page splits billed API cost from subscription-covered tokens. T12 started in wt-1 (feat/task-revive): revive a discarded task (discarded -> planning, worktree re-created) + a /tasks history page with filters. T11 secrets rotation still building in wt-2.
