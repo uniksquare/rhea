@@ -232,7 +232,7 @@ export function buildCliArgs(opts: {
   // Note: the installed `claude` CLI has no --max-turns flag, so maxTurns is
   // only enforced on the SDK path.
   if (opts.model) args.push("--model", opts.model);
-  if (opts.resumeSessionId) args.push("--resume", opts.resumeSessionId);
+  if (opts.resumeSessionId) args.push("--resume", assertSessionId(opts.resumeSessionId));
   return args;
 }
 
@@ -254,7 +254,7 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
       maxTurns: opts.maxTurns,
       env: opts.env,
       ...(opts.model ? { model: opts.model } : {}),
-      ...(opts.resumeSessionId ? { resume: opts.resumeSessionId } : {}),
+      ...(opts.resumeSessionId ? { resume: assertSessionId(opts.resumeSessionId) } : {}),
     },
   });
   let last: RawResult | undefined;
@@ -352,4 +352,13 @@ export async function runHarness(opts: {
     if (!importFailed) throw err;
     return runViaCli(normalized);
   }
+}
+
+/** Session ids only ever come from Claude Code itself, but they are stored in
+ *  the DB and passed to argv, so reject anything that could read as a flag. */
+export function assertSessionId(id: string): string {
+  if (!/^[A-Za-z0-9-]{1,128}$/.test(id)) {
+    throw new Error("Invalid resume session id");
+  }
+  return id;
 }
