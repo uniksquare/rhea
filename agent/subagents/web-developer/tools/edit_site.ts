@@ -1,7 +1,8 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runHarness } from "../../../../lib/harness.ts";
-import { ensureBranch, commitAll } from "../../../../lib/github.ts";
+import { commitAll } from "../../../../lib/github.ts";
+import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
 import {
   getAssignment,
   getTask,
@@ -67,11 +68,15 @@ export default defineTool({
     await updateTask(taskId, orgId, { status: "planning" });
 
     const branch = branchForTask(taskId);
-    await ensureBranch({
-      workspacePath: config.workspacePath,
-      branch,
-      base: config.baseBranch,
-    });
+    // Each task works in its own git worktree so concurrent tasks never share
+    // (or dirty) the assignment's main checkout.
+    let wt: typeof config;
+    try {
+      wt = await resolveTaskWorkspace(config, branch);
+    } catch (err) {
+      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
+      throw err;
+    }
 
     const prompt = [
       `You are making a scoped change to a website repo.`,
@@ -83,7 +88,7 @@ export default defineTool({
     let harness;
     try {
       harness = await runHarness({
-        workspacePath: config.workspacePath,
+        workspacePath: wt.workspacePath,
         prompt,
         allowedTools: config.allowedTools,
         model: config.model,
@@ -100,7 +105,7 @@ export default defineTool({
 
     // Only stage the site directory so nothing outside siteDir can be committed.
     const commit = await commitAll({
-      workspacePath: config.workspacePath,
+      workspacePath: wt.workspacePath,
       message: `rhea: ${input.request.slice(0, 72)}`,
       paths: [siteDir],
     });

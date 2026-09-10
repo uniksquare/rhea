@@ -2,7 +2,8 @@ import { defineTool } from "eve/tools";
 import { always } from "eve/tools/approval";
 import { z } from "zod";
 import { publishLive } from "../../../../lib/publisher.ts";
-import { checkoutBranch } from "../../../../lib/github.ts";
+import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
+import { hasMinRole, type Role } from "../../../../lib/rbac.ts";
 import { getTask, updateTask, resolveAssignmentConfig } from "../../../../lib/platform.ts";
 
 // Deterministic branch name for a task, shared across this subagent's tools.
@@ -30,6 +31,14 @@ export default defineTool({
     if (!orgId) {
       throw new Error("No organization found on the current session.");
     }
+    // Publishing goes live: ADMIN or OWNER only, regardless of tool approval.
+    const rawRole = ctx.session.auth.current?.attributes?.role;
+    const role = typeof rawRole === "string" ? rawRole : undefined;
+    if (!role || !hasMinRole(role as Role, "ADMIN")) {
+      throw new Error(
+        `Forbidden: role "${role ?? "none"}" cannot publish; ADMIN or OWNER is required.`
+      );
+    }
 
     const task = await getTask(input.taskId, orgId);
     if (!task) {
@@ -49,10 +58,9 @@ export default defineTool({
     const branch = branchForTask(input.taskId);
 
     try {
-      // The workspace checkout is shared across tasks; make sure it is on this
-      // task's branch so no other task's tree goes live.
-      await checkoutBranch({ workspacePath: config.workspacePath, branch });
-      const { url } = await publishLive({ config });
+      // Publish from this task's own worktree so no other task's tree goes live.
+      const wt = await resolveTaskWorkspace(config, branch);
+      const { url } = await publishLive({ config: wt });
       await updateTask(input.taskId, orgId, { publishedUrl: url, status: "published" });
       return { url };
     } catch (err) {
