@@ -2,25 +2,16 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runHarness, harnessBilling } from "../../../../lib/harness.ts";
 import { commitAll } from "../../../../lib/github.ts";
-import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
+import { resolveTaskWorkspace, revertPaths } from "../../../../lib/worktree.ts";
 import {
   getAssignment,
   getTask,
   createTask,
   updateTask,
   recordUsage,
+  type TaskStatus,
 } from "../../../../lib/platform.ts";
-
-// Deterministic branch name for a task, shared across this subagent's tools.
-function branchForTask(taskId: string): string {
-  const short = taskId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
-  return `task/${short}`;
-}
-
-function errorText(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.slice(0, 500);
-}
+import { branchForTask, claimFromAny, errorText } from "../../../../lib/task-chat.ts";
 
 export default defineTool({
   description:
@@ -30,6 +21,10 @@ export default defineTool({
     taskId: z.string().optional().describe("Existing Task id to resume; omit to start a new Task"),
     request: z.string().describe("The change request. May be a long document; extract the concrete edits for this site."),
   }),
+  // Status flow: prev (requested | planning | previewed | failed) -> working
+  // (atomic claim) -> planning on success; on failure siteDir is reverted and
+  // the task returns to prev (or "failed" from requested, or "planning" when
+  // the revert itself failed and the tree may be dirty).
   async execute(input, ctx) {
     const rawOrgId = ctx.session.auth.current?.attributes?.orgId;
     const orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
@@ -64,18 +59,47 @@ export default defineTool({
       taskId = task.taskId;
     }
 
-    // Mark the task as in progress before any git or harness work starts.
-    await updateTask(taskId, orgId, { status: "planning" });
+    // Lock the task for the duration of this edit; a concurrent turn, preview
+    // or publish on the same task makes the claim fail.
+    const claim = await claimFromAny(taskId, orgId, "working");
+    if (!claim.ok) {
+      throw new Error(`Task ${taskId} is busy (status "${claim.prev ?? "unknown"}").`);
+    }
+    const prev = claim.prev;
+    const failedStatus: TaskStatus = prev === "requested" ? "failed" : prev;
 
     const branch = branchForTask(taskId);
+    let wt: typeof config | undefined;
+
+    // Release the lock after a failure. Once the worktree exists the harness
+    // may have touched files under siteDir, so revert them first; if that
+    // revert fails the tree may be dirty and "planning" forces a re-preview.
+    const fail = async (err: unknown): Promise<never> => {
+      const text = errorText(err);
+      let restoreTo: TaskStatus = failedStatus;
+      let detail = text;
+      if (wt) {
+        try {
+          await revertPaths({ workspacePath: wt.workspacePath, paths: [siteDir] });
+        } catch (revertErr) {
+          restoreTo = "planning";
+          detail = `${text} (revert failed: ${errorText(revertErr)})`.slice(0, 500);
+        }
+      }
+      try {
+        await updateTask(taskId, orgId, { status: restoreTo, error: detail });
+      } catch {
+        // ignore secondary failure
+      }
+      throw err instanceof Error ? err : new Error(text);
+    };
+
     // Each task works in its own git worktree so concurrent tasks never share
     // (or dirty) the assignment's main checkout.
-    let wt: typeof config;
     try {
       wt = await resolveTaskWorkspace(config, branch);
     } catch (err) {
-      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
-      throw err;
+      return fail(err);
     }
 
     const prompt = [
@@ -95,21 +119,24 @@ export default defineTool({
         scope: { siteDir },
       });
     } catch (err) {
-      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
-      throw err;
+      return fail(err);
     }
 
     if (!harness.ok) {
-      await updateTask(taskId, orgId, { status: "planning", error: errorText(harness.output) });
-      throw new Error(`Site edit failed: ${errorText(harness.output)}`);
+      return fail(new Error(`Site edit failed: ${errorText(harness.output)}`));
     }
 
-    // Only stage the site directory so nothing outside siteDir can be committed.
-    const commit = await commitAll({
-      workspacePath: wt.workspacePath,
-      message: `rhea: ${input.request.slice(0, 72)}`,
-      paths: [siteDir],
-    });
+    let commit: Awaited<ReturnType<typeof commitAll>>;
+    try {
+      // Only stage the site directory so nothing outside siteDir can be committed.
+      commit = await commitAll({
+        workspacePath: wt.workspacePath,
+        message: `rhea: ${input.request.slice(0, 72)}`,
+        paths: [siteDir],
+      });
+    } catch (err) {
+      return fail(err);
+    }
 
     await updateTask(taskId, orgId, { branch, status: "planning" });
 

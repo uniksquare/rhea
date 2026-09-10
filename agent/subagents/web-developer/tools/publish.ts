@@ -4,18 +4,8 @@ import { z } from "zod";
 import { publishLive } from "../../../../lib/publisher.ts";
 import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
 import { hasMinRole, type Role } from "../../../../lib/rbac.ts";
-import { getTask, updateTask, resolveAssignmentConfig } from "../../../../lib/platform.ts";
-
-// Deterministic branch name for a task, shared across this subagent's tools.
-function branchForTask(taskId: string): string {
-  const short = taskId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
-  return `task/${short}`;
-}
-
-function errorText(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.slice(0, 500);
-}
+import { getTask, updateTask, claimTaskStatus, resolveAssignmentConfig } from "../../../../lib/platform.ts";
+import { branchForTask, errorText } from "../../../../lib/task-chat.ts";
 
 export default defineTool({
   description:
@@ -25,6 +15,8 @@ export default defineTool({
     taskId: z.string().describe("The Task being published; must be in status 'previewed'"),
   }),
   needsApproval: always(),
+  // Status flow: previewed -> publishing (atomic claim) -> published on
+  // success, back to previewed on failure. Mirrors app/api/tasks/[id]/publish.
   async execute(input, ctx) {
     const rawOrgId = ctx.session.auth.current?.attributes?.orgId;
     const orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
@@ -53,18 +45,28 @@ export default defineTool({
       );
     }
 
-    // Full config (with decrypted publish credentials) stays in this scope only.
-    const config = await resolveAssignmentConfig(input.assignmentId, orgId);
-    const branch = branchForTask(input.taskId);
+    // Atomically claim the task so two concurrent publishes cannot both proceed.
+    const claimed = await claimTaskStatus(input.taskId, orgId, "previewed", "publishing");
+    if (!claimed) {
+      throw new Error(`Task ${input.taskId} is not previewed or is already being published.`);
+    }
 
     try {
+      // Full config (with decrypted publish credentials) stays in this scope only.
+      const config = await resolveAssignmentConfig(input.assignmentId, orgId);
+      const branch = branchForTask(input.taskId);
       // Publish from this task's own worktree so no other task's tree goes live.
       const wt = await resolveTaskWorkspace(config, branch);
       const { url } = await publishLive({ config: wt });
       await updateTask(input.taskId, orgId, { publishedUrl: url, status: "published" });
       return { url };
     } catch (err) {
-      await updateTask(input.taskId, orgId, { error: errorText(err) });
+      // Record the failure and revert the claim so the task can be retried.
+      try {
+        await updateTask(input.taskId, orgId, { status: "previewed", error: errorText(err) });
+      } catch {
+        // ignore secondary failure
+      }
       throw err;
     }
   },

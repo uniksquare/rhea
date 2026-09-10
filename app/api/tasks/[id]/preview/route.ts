@@ -4,12 +4,16 @@ import { requirePermission, type Role } from "@/lib/rbac";
 import { getTask, resolveAssignmentConfig, updateTask } from "@/lib/platform";
 import { resolveTaskWorkspace } from "@/lib/worktree";
 import { deployPreview } from "@/lib/previewer";
-import { errorText } from "@/lib/task-chat";
+import { claimFromAny, errorText } from "@/lib/task-chat";
 
 // Deploying a preview mirrors the site over FTP; allow it time.
 export const maxDuration = 300;
 
 // POST: deploy a preview build of the task's branch. Never returns secrets.
+//
+// Status flow: prev (planning | previewed) -> working (atomic claim) ->
+// previewed on success, back to prev on failure. The claim is what stops a
+// preview from running while a chat turn is editing the same worktree.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) {
@@ -37,6 +41,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     );
   }
 
+  const claim = await claimFromAny(id, orgId, "working");
+  if (!claim.ok) {
+    return NextResponse.json({ error: "Task is busy" }, { status: 409 });
+  }
+  const prev = claim.prev;
+
   try {
     // Decrypted config stays in memory here only; it is never logged or returned.
     const config = await resolveAssignmentConfig(task.assignmentId, orgId);
@@ -47,7 +57,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     const message = errorText(err);
     try {
-      await updateTask(id, orgId, { error: message });
+      await updateTask(id, orgId, { status: prev, error: message });
     } catch {
       // ignore secondary failure
     }

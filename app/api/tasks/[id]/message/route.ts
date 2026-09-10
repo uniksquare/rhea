@@ -5,20 +5,20 @@ import {
   getTask,
   getAssignment,
   updateTask,
-  claimTaskStatus,
   addTaskMessage,
   recordUsage,
   type TaskMessageMode,
   type TaskStatus,
 } from "@/lib/platform";
 import { runHarness, harnessBilling, READ_ONLY_TOOLS } from "@/lib/harness";
-import { resolveTaskWorkspace } from "@/lib/worktree";
+import { resolveTaskWorkspace, revertPaths } from "@/lib/worktree";
 import { commitAll } from "@/lib/github";
 import {
   TASK_MESSAGE_MAX,
   TASK_ROLE_KEY,
   branchForTask,
   buildTaskPrompt,
+  claimFromAny,
   errorText,
   isChatClaimable,
   isChatLocked,
@@ -94,11 +94,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Lock the task for the duration of this turn. The atomic claim is what
   // stops two concurrent turns from resuming the same session and racing on
   // the worktree; the loser gets 409.
-  const prev: TaskStatus = task.status;
-  const claimed = await claimTaskStatus(id, orgId, prev, "working");
-  if (!claimed) {
+  const claim = await claimFromAny(id, orgId, "working");
+  if (!claim.ok) {
     return NextResponse.json({ error: "Task is busy" }, { status: 409 });
   }
+  const prev: TaskStatus = claim.prev;
 
   // Status after a failed turn: back to where it was, except a task that had
   // never progressed past "requested" becomes "failed".
@@ -106,22 +106,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await addTaskMessage({ orgId, taskId: id, role: "user", content: message, mode });
 
+  // The worktree, once resolved; an edit turn that fails after this point
+  // must revert whatever the harness left under siteDir before releasing.
+  let wt: typeof config | undefined;
+
   const fail = async (err: unknown, status = 502) => {
     const text = errorText(err);
+    let restoreTo: TaskStatus = failedStatus;
+    let detail = text;
+    if (mode === "edit" && wt) {
+      try {
+        await revertPaths({ workspacePath: wt.workspacePath, paths: [siteDir] });
+      } catch (revertErr) {
+        // The tree may still be dirty: never hand back "previewed" over an
+        // unreverted edit. "planning" makes the client re-preview first.
+        restoreTo = "planning";
+        detail = `${text} (revert failed: ${errorText(revertErr)})`.slice(0, 500);
+      }
+    }
     try {
       await addTaskMessage({ orgId, taskId: id, role: "assistant", content: `Error: ${text}`, mode });
     } catch {
       // ignore secondary failure
     }
     try {
-      await updateTask(id, orgId, { status: failedStatus, error: text });
+      await updateTask(id, orgId, { status: restoreTo, error: detail });
     } catch {
       // ignore secondary failure
     }
     return NextResponse.json({ error: text }, { status });
   };
 
-  let wt: typeof config;
   let jobDescription: string;
   try {
     wt = await resolveTaskWorkspace(config, branch);

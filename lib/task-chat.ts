@@ -9,7 +9,8 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { TaskMessageMode, TaskStatus } from "./platform";
+// Relative imports with .ts extension: eve's bundler ignores tsconfig paths.
+import { claimTaskStatus, getTask, type TaskMessageMode, type TaskStatus } from "./platform.ts";
 
 export type PlanEdit = { file: string; change: string };
 export type Plan = { summary: string; edits: PlanEdit[]; questions: string[] };
@@ -26,11 +27,59 @@ export const TASK_ROLE_KEY = "web-developer";
 /** Statuses in which the chat does not accept turns ("working" = a turn is already running). */
 export const CHAT_LOCKED_STATUSES: readonly TaskStatus[] = ["published", "discarded", "publishing", "working"];
 
-/** Statuses from which a chat turn may claim the task (moving it to "working"). */
-export const CHAT_CLAIMABLE_STATUSES: readonly TaskStatus[] = ["requested", "planning", "previewed", "failed"];
+/**
+ * Statuses from which a task may be claimed for exclusive work (moving it to
+ * "working" or "publishing"). Everything else is either terminal (published,
+ * discarded) or already claimed by another worker (working, publishing).
+ */
+export const CLAIMABLE_STATUSES: readonly TaskStatus[] = ["requested", "planning", "previewed", "failed"];
+
+/** @deprecated alias of CLAIMABLE_STATUSES, kept for existing imports. */
+export const CHAT_CLAIMABLE_STATUSES = CLAIMABLE_STATUSES;
+
+export function isClaimable(status: string): status is TaskStatus {
+  return (CLAIMABLE_STATUSES as readonly string[]).includes(status);
+}
 
 export function isChatClaimable(status: string): status is TaskStatus {
-  return (CHAT_CLAIMABLE_STATUSES as readonly string[]).includes(status);
+  return isClaimable(status);
+}
+
+export type ClaimResult =
+  /** The claim moved the task from `prev` to the requested status. */
+  | { ok: true; prev: TaskStatus }
+  /** Not claimed; `prev` is the status observed (null when the task does not exist). */
+  | { ok: false; prev: TaskStatus | null };
+
+/** The two platform calls claimFromAny needs; injectable so the logic is unit testable. */
+export type ClaimDeps = {
+  getTask: (id: string, orgId: string) => Promise<{ status: string } | null>;
+  claimTaskStatus: (id: string, orgId: string, from: TaskStatus, to: TaskStatus) => Promise<boolean>;
+};
+
+/**
+ * Atomically claim a task from whatever claimable status it is currently in.
+ * Reads the task, and only when its status is in CLAIMABLE_STATUSES tries the
+ * conditional `claimTaskStatus(prev -> to)`; a concurrent claim between the
+ * read and the update simply makes that update match zero rows, so exactly
+ * one caller wins. Returns the observed `prev` so the caller can restore it.
+ */
+export async function claimFromAnyWith(
+  deps: ClaimDeps,
+  id: string,
+  orgId: string,
+  to: TaskStatus,
+): Promise<ClaimResult> {
+  const task = await deps.getTask(id, orgId);
+  if (!task) return { ok: false, prev: null };
+  if (!isClaimable(task.status)) return { ok: false, prev: task.status as TaskStatus };
+  const prev = task.status;
+  const ok = await deps.claimTaskStatus(id, orgId, prev, to);
+  return ok ? { ok: true, prev } : { ok: false, prev };
+}
+
+export async function claimFromAny(id: string, orgId: string, to: TaskStatus): Promise<ClaimResult> {
+  return claimFromAnyWith({ getTask, claimTaskStatus }, id, orgId, to);
 }
 
 /** Relative path of the Web Developer job description (the Role's instructions). */
