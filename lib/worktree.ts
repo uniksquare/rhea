@@ -167,6 +167,30 @@ export async function removeTaskWorkspace(config: WorkspaceConfig, branch: strin
   await git(["worktree", "prune"], workspacePath, { allowFail: true });
 }
 
+/**
+ * Throw away every uncommitted change under `paths` in `workspacePath`:
+ * tracked files are restored from HEAD (`git checkout -- <paths>`) and
+ * untracked files and directories are deleted (`git clean -fd -- <paths>`).
+ * Used after a failed edit turn so a half-applied harness edit never lingers
+ * in the task worktree. Paths are passed as argv, never through a shell.
+ */
+export async function revertPaths({
+  workspacePath,
+  paths,
+}: {
+  workspacePath: string;
+  paths: string[];
+}): Promise<void> {
+  if (paths.length === 0) return;
+  // `checkout -- <pathspec>` errors when nothing tracked matches (e.g. a
+  // brand-new siteDir); only untracked files exist then, so skip to clean.
+  const tracked = await git(["ls-files", "--", ...paths], workspacePath);
+  if (tracked.stdout !== "") {
+    await git(["checkout", "--", ...paths], workspacePath);
+  }
+  await git(["clean", "-fd", "--", ...paths], workspacePath);
+}
+
 /** Path of the worktree (or the shared checkout) that has `branch` checked out, if any. */
 async function worktreeHoldingBranch(workspacePath: string, branch: string): Promise<string | null> {
   const list = await git(["worktree", "list", "--porcelain"], workspacePath, { allowFail: true });

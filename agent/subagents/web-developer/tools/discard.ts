@@ -1,6 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { getAssignment, getTask, updateTask } from "../../../../lib/platform.ts";
+import { claimTaskStatus, getAssignment, getTask, updateTask, type TaskStatus } from "../../../../lib/platform.ts";
 import { removeTaskWorkspace } from "../../../../lib/worktree.ts";
 
 /**
@@ -39,6 +39,9 @@ export default defineTool({
     taskId: z.string().describe("The Task to discard"),
     reason: z.string().optional().describe("Why the task is being discarded"),
   }),
+  // Status flow: current (requested | planning | previewed | failed) ->
+  // discarded via an atomic claim; published, publishing and working tasks are
+  // refused, and the worktree is removed only after the claim succeeds.
   async execute(input, ctx) {
     const rawOrgId = ctx.session.auth.current?.attributes?.orgId;
     const orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
@@ -53,8 +56,21 @@ export default defineTool({
     if (task.status === "published") {
       throw new Error(`Task ${input.taskId} is already published and cannot be discarded.`);
     }
+    if (task.status === "publishing") {
+      throw new Error(`Task ${input.taskId} is currently being published and cannot be discarded.`);
+    }
+    if (task.status === "working") {
+      throw new Error(`Task ${input.taskId} is busy (a turn is in progress) and cannot be discarded right now.`);
+    }
+    if (task.status === "discarded") {
+      return { taskId: input.taskId, status: "discarded", reason: input.reason };
+    }
 
-    await updateTask(input.taskId, orgId, { status: "discarded" });
+    const claimed = await claimTaskStatus(input.taskId, orgId, task.status as TaskStatus, "discarded");
+    if (!claimed) {
+      // Something raced us (a turn, preview or publish started); leave the worktree alone.
+      throw new Error(`Task ${input.taskId} is busy and cannot be discarded right now.`);
+    }
     await cleanupWorktree(input.taskId, orgId, task.assignmentId, task.branch);
     return { taskId: input.taskId, status: "discarded", reason: input.reason };
   },

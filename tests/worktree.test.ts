@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { resolveTaskWorkspace, removeTaskWorkspace, worktreePathFor } from "../lib/worktree.ts";
+import { resolveTaskWorkspace, removeTaskWorkspace, revertPaths, worktreePathFor } from "../lib/worktree.ts";
 import type { AssignmentConfig } from "../lib/assignment-types";
 
 const SCRATCH =
@@ -79,6 +79,35 @@ test("a dirty main checkout does not block resolving a task worktree", async () 
   assert.equal(git(["rev-parse", "--abbrev-ref", "HEAD"], wt.workspacePath), "task/deadbeef");
   assert.equal(git(["rev-parse", "--abbrev-ref", "HEAD"], repo), "main");
   await fs.rm(path.join(repo, "shared", "dirty.txt"));
+});
+
+test("revertPaths restores tracked files and deletes untracked ones under siteDir only", async () => {
+  const wt = (await resolveTaskWorkspace(config, BRANCH)).workspacePath;
+  const tracked = path.join(wt, "shared", "index.html");
+  const untracked = path.join(wt, "shared", "new", "page.html");
+  const outside = path.join(wt, "outside.txt");
+  await fs.writeFile(tracked, "<h1>edited</h1>\n");
+  await fs.mkdir(path.dirname(untracked), { recursive: true });
+  await fs.writeFile(untracked, "<p>new</p>\n");
+  await fs.writeFile(outside, "not under siteDir\n");
+  assert.notEqual(git(["status", "--porcelain", "--", "shared"], wt), "");
+
+  await revertPaths({ workspacePath: wt, paths: ["shared"] });
+
+  assert.equal(await fs.readFile(tracked, "utf8"), "<h1>hi</h1>\n");
+  await assert.rejects(fs.access(untracked));
+  assert.equal(git(["status", "--porcelain", "--", "shared"], wt), "");
+  // Paths outside the requested set are left alone.
+  assert.equal(await fs.readFile(outside, "utf8"), "not under siteDir\n");
+  await fs.rm(outside);
+
+  // A siteDir with no tracked files (only untracked) still reverts cleanly.
+  const fresh = path.join(wt, "brand-new");
+  await fs.mkdir(fresh, { recursive: true });
+  await fs.writeFile(path.join(fresh, "a.txt"), "x\n");
+  await revertPaths({ workspacePath: wt, paths: ["brand-new"] });
+  await assert.rejects(fs.access(fresh));
+  assert.equal(git(["status", "--porcelain"], wt), "");
 });
 
 test("removeTaskWorkspace drops the worktree but keeps the branch", async () => {

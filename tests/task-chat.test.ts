@@ -10,8 +10,61 @@ import {
   planFromJson,
   loadJobDescription,
   errorText,
+  isClaimable,
+  claimFromAnyWith,
+  CLAIMABLE_STATUSES,
+  CHAT_CLAIMABLE_STATUSES,
   TASK_MESSAGE_MAX,
+  type ClaimDeps,
 } from "../lib/task-chat.ts";
+import type { TaskStatus } from "../lib/platform.ts";
+
+test("CLAIMABLE_STATUSES: exactly requested, planning, previewed, failed", () => {
+  assert.deepEqual([...CLAIMABLE_STATUSES], ["requested", "planning", "previewed", "failed"]);
+  assert.equal(CHAT_CLAIMABLE_STATUSES, CLAIMABLE_STATUSES);
+  for (const s of CLAIMABLE_STATUSES) assert.equal(isClaimable(s), true, s);
+  for (const s of ["working", "publishing", "published", "discarded", "bogus", ""]) assert.equal(isClaimable(s), false, s);
+});
+
+function fakeDeps(status: string | null, claimResult = true) {
+  const calls: Array<[string, string, TaskStatus, TaskStatus]> = [];
+  const deps: ClaimDeps = {
+    getTask: async () => (status === null ? null : { status }),
+    claimTaskStatus: async (id, orgId, from, to) => {
+      calls.push([id, orgId, from, to]);
+      return claimResult;
+    },
+  };
+  return { deps, calls };
+}
+
+test("claimFromAnyWith: claims from every claimable status and reports prev", async () => {
+  for (const s of CLAIMABLE_STATUSES) {
+    const { deps, calls } = fakeDeps(s);
+    const r = await claimFromAnyWith(deps, "t1", "org1", "working");
+    assert.deepEqual(r, { ok: true, prev: s });
+    assert.deepEqual(calls, [["t1", "org1", s, "working"]]);
+  }
+});
+
+test("claimFromAnyWith: never calls claimTaskStatus for non-claimable or missing tasks", async () => {
+  for (const s of ["working", "publishing", "published", "discarded"]) {
+    const { deps, calls } = fakeDeps(s);
+    const r = await claimFromAnyWith(deps, "t1", "org1", "working");
+    assert.deepEqual(r, { ok: false, prev: s });
+    assert.equal(calls.length, 0);
+  }
+  const missing = fakeDeps(null);
+  assert.deepEqual(await claimFromAnyWith(missing.deps, "t1", "org1", "working"), { ok: false, prev: null });
+  assert.equal(missing.calls.length, 0);
+});
+
+test("claimFromAnyWith: a lost race (conditional update matched nothing) is ok:false with prev", async () => {
+  const { deps, calls } = fakeDeps("previewed", false);
+  const r = await claimFromAnyWith(deps, "t1", "org1", "publishing");
+  assert.deepEqual(r, { ok: false, prev: "previewed" });
+  assert.deepEqual(calls, [["t1", "org1", "previewed", "publishing"]]);
+});
 
 test("branchForTask: task/<first 8 alnum chars>, same as edit_site", () => {
   assert.equal(branchForTask("3f2a9c1e-77b4-4d1b-9a2e-000000000000"), "task/3f2a9c1e");

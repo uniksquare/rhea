@@ -1,14 +1,16 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runHarness, harnessBilling } from "../../../../lib/harness.ts";
+import { resolveTaskWorkspace } from "../../../../lib/worktree.ts";
 import {
   getAssignment,
   getTask,
   createTask,
   updateTask,
   recordUsage,
+  type TaskStatus,
 } from "../../../../lib/platform.ts";
-import { errorText, planFromOutput, type Plan } from "../../../../lib/task-chat.ts";
+import { branchForTask, claimFromAny, errorText, planFromOutput, type Plan } from "../../../../lib/task-chat.ts";
 
 export type { Plan, PlanEdit } from "../../../../lib/task-chat.ts";
 
@@ -23,6 +25,10 @@ export default defineTool({
     taskId: z.string().optional().describe("Existing Task id to resume; omit to start a new Task"),
     request: z.string().describe("The change request. May be a long document; the plan extracts the concrete edits for this site."),
   }),
+  // Status flow: prev (requested | planning | previewed | failed) -> working
+  // (atomic claim) -> planning when the task was requested/failed, otherwise
+  // back to prev (a previewed task stays previewed: a plan changes no files).
+  // On failure the task returns to prev (or "failed" from requested).
   async execute(input, ctx) {
     const rawOrgId = ctx.session.auth.current?.attributes?.orgId;
     const orgId = typeof rawOrgId === "string" ? rawOrgId : undefined;
@@ -57,7 +63,33 @@ export default defineTool({
       taskId = task.taskId;
     }
 
-    await updateTask(taskId, orgId, { status: "planning" });
+    const claim = await claimFromAny(taskId, orgId, "working");
+    if (!claim.ok) {
+      throw new Error(`Task ${taskId} is busy (status "${claim.prev ?? "unknown"}").`);
+    }
+    const prev = claim.prev;
+    const failedStatus: TaskStatus = prev === "requested" ? "failed" : prev;
+    const successStatus: TaskStatus = prev === "requested" || prev === "failed" ? "planning" : prev;
+
+    const fail = async (err: unknown): Promise<never> => {
+      const text = errorText(err);
+      try {
+        await updateTask(taskId, orgId, { status: failedStatus, error: text });
+      } catch {
+        // ignore secondary failure
+      }
+      throw err instanceof Error ? err : new Error(text);
+    };
+
+    // Plan against the task's own worktree (the branch edit_site commits to),
+    // never the shared checkout, so the plan sees this task's prior edits.
+    const branch = branchForTask(taskId);
+    let wt: typeof config;
+    try {
+      wt = await resolveTaskWorkspace(config, branch);
+    } catch (err) {
+      return fail(err);
+    }
 
     const prompt = [
       `You are planning a scoped change to a website repo. This is a READ-ONLY planning pass.`,
@@ -75,7 +107,7 @@ export default defineTool({
     let harness;
     try {
       harness = await runHarness({
-        workspacePath: config.workspacePath,
+        workspacePath: wt.workspacePath,
         prompt,
         allowedTools: PLAN_TOOLS,
         readOnly: true,
@@ -83,18 +115,16 @@ export default defineTool({
         scope: { siteDir },
       });
     } catch (err) {
-      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
-      throw err;
+      return fail(err);
     }
 
     if (!harness.ok) {
-      await updateTask(taskId, orgId, { status: "planning", error: errorText(harness.output) });
-      throw new Error(`Planning failed: ${errorText(harness.output)}`);
+      return fail(new Error(`Planning failed: ${errorText(harness.output)}`));
     }
 
     const plan: Plan = planFromOutput(harness.output);
 
-    await updateTask(taskId, orgId, { plan, status: "planning" });
+    await updateTask(taskId, orgId, { plan, status: successStatus });
 
     await recordUsage({
       orgId,
