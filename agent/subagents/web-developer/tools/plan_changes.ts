@@ -119,6 +119,7 @@ export default defineTool({
         workspacePath: config.workspacePath,
         prompt,
         allowedTools: PLAN_TOOLS,
+        readOnly: true,
         model: config.model,
       });
     } catch (err) {

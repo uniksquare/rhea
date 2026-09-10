@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { hasMinRole, type Role } from "@/lib/rbac";
 import { formatDate } from "./assignments-list";
 
 export interface TaskRow {
@@ -28,6 +29,9 @@ export interface TaskRow {
 interface AssignmentTasksProps {
   tasks: TaskRow[];
   userRole?: string;
+  /** Whether the current user may discard tasks (role >= OPERATOR). Falls back to
+   *  computing from userRole when the page does not pass it explicitly. */
+  canDiscard?: boolean;
 }
 
 type PendingAction = { kind: "publish" | "discard"; task: TaskRow } | null;
@@ -36,6 +40,7 @@ const statusStyles: Record<string, string> = {
   requested: "bg-slate/5 text-slate border-slate/15",
   planning: "bg-iris-violet/5 text-iris-violet border-iris-violet/15",
   previewed: "bg-amber-50 text-amber-700 border-amber-200",
+  publishing: "bg-iris-violet/5 text-iris-violet border-iris-violet/15",
   published: "bg-emerald-50 text-emerald-700 border-emerald-200",
   discarded: "bg-slate/5 text-slate border-slate/15 line-through",
   failed: "bg-rose-50 text-rose-700 border-rose-200",
@@ -52,8 +57,19 @@ function truncate(text: string, max = 96) {
   return text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
 }
 
+function isHttpUrl(value: string): boolean {
+  return value.startsWith("https://") || value.startsWith("http://");
+}
+
 function LinkOut({ href, label }: { href: string | null; label: string }) {
   if (!href) return <span className="text-fog text-xs">{label}</span>;
+  if (!isHttpUrl(href)) {
+    return (
+      <span className="text-xs text-slate break-all" title={href}>
+        {href}
+      </span>
+    );
+  }
   return (
     <a
       href={href}
@@ -68,9 +84,10 @@ function LinkOut({ href, label }: { href: string | null; label: string }) {
   );
 }
 
-export function AssignmentTasks({ tasks, userRole }: AssignmentTasksProps) {
+export function AssignmentTasks({ tasks, userRole, canDiscard: canDiscardProp }: AssignmentTasksProps) {
   const router = useRouter();
   const canPublish = userRole === "OWNER" || userRole === "ADMIN";
+  const canDiscard = canDiscardProp ?? hasMinRole(userRole as Role, "OPERATOR");
 
   const [pending, setPending] = useState<PendingAction>(null);
   const [busy, setBusy] = useState(false);
@@ -118,6 +135,7 @@ export function AssignmentTasks({ tasks, userRole }: AssignmentTasksProps) {
               ) : (
                 tasks.map((t) => {
                   const isPreviewed = t.status === "previewed";
+                  const isPublishing = t.status === "publishing";
                   const isTerminal = t.status === "published" || t.status === "discarded";
                   return (
                     <tr key={t.taskId} className="hover:bg-soft-snow/50 transition-colors align-top">
@@ -127,7 +145,7 @@ export function AssignmentTasks({ tasks, userRole }: AssignmentTasksProps) {
                             statusStyles[t.status] ?? statusStyles.requested
                           }`}
                         >
-                          {t.status}
+                          {isPublishing ? "publishing…" : t.status}
                         </span>
                       </td>
                       <td className="py-16 px-24 max-w-md">
@@ -171,16 +189,24 @@ export function AssignmentTasks({ tasks, userRole }: AssignmentTasksProps) {
                               Publish
                             </button>
                           )}
-                          <button
-                            type="button"
-                            disabled={isTerminal}
-                            onClick={() => setPending({ kind: "discard", task: t })}
-                            className={`${rowBtn} bg-paper-white border-mist text-slate hover:text-rose-700 hover:border-rose-200`}
-                            title={isTerminal ? "Published or discarded tasks cannot be discarded" : "Discard this task"}
-                          >
-                            <Trash2 className="size-[12px]" />
-                            Discard
-                          </button>
+                          {canDiscard && (
+                            <button
+                              type="button"
+                              disabled={isTerminal || isPublishing}
+                              onClick={() => setPending({ kind: "discard", task: t })}
+                              className={`${rowBtn} bg-paper-white border-mist text-slate hover:text-rose-700 hover:border-rose-200`}
+                              title={
+                                isPublishing
+                                  ? "Task is currently being published"
+                                  : isTerminal
+                                    ? "Published or discarded tasks cannot be discarded"
+                                    : "Discard this task"
+                              }
+                            >
+                              <Trash2 className="size-[12px]" />
+                              Discard
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

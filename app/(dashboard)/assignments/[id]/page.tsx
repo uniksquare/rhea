@@ -3,8 +3,13 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { getAssignment, listTasks } from "@/lib/platform";
+import { hasMinRole, type Role } from "@/lib/rbac";
 import { roleLabel, formatDate } from "@/app/_components/assignments-list";
 import { AssignmentTasks } from "@/app/_components/assignments-tasks";
+
+function isHttpUrl(value: string | null | undefined): value is string {
+  return !!value && (value.startsWith("https://") || value.startsWith("http://"));
+}
 
 interface AssignmentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -39,6 +44,8 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
 
   const config = assignment.config;
   const target = config.publishTarget;
+  const canDiscard = hasMinRole(session.user.role as Role, "OPERATOR");
+  const baseUrl = target?.type === "hostinger-ftp" ? target.baseUrl : null;
 
   return (
     <div className="space-y-24 max-w-7xl mx-auto p-24">
@@ -55,9 +62,13 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
           <h1 className="font-lustria text-3xl font-bold tracking-tight text-graphite-ink">{assignment.name}</h1>
           <p className="text-slate text-sm leading-relaxed">
             {roleLabel(assignment.roleKey)} on{" "}
-            <a href={config.repoUrl} target="_blank" rel="noopener noreferrer" className="text-iris-violet hover:underline">
-              {config.repoUrl}
-            </a>
+            {isHttpUrl(config.repoUrl) ? (
+              <a href={config.repoUrl} target="_blank" rel="noopener noreferrer" className="text-iris-violet hover:underline">
+                {config.repoUrl}
+              </a>
+            ) : (
+              <span className="break-all">{config.repoUrl}</span>
+            )}
           </p>
         </div>
         <dl className="grid grid-cols-2 gap-x-24 gap-y-[6px] text-xs bg-soft-snow border border-mist rounded p-16 shadow-sm min-w-[280px]">
@@ -71,6 +82,20 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
           <dd className="text-graphite-ink">
             {target?.type === "hostinger-ftp" ? `FTP ${target.host}` : target?.type === "vercel" ? "Vercel" : "n/a"}
           </dd>
+          {baseUrl && (
+            <>
+              <dt className="font-mono uppercase tracking-wider text-[10px] text-slate">Live URL</dt>
+              <dd className="text-graphite-ink">
+                {isHttpUrl(baseUrl) ? (
+                  <a href={baseUrl} target="_blank" rel="noopener noreferrer" className="text-iris-violet hover:underline break-all">
+                    {baseUrl}
+                  </a>
+                ) : (
+                  <span className="break-all">{baseUrl}</span>
+                )}
+              </dd>
+            </>
+          )}
           <dt className="font-mono uppercase tracking-wider text-[10px] text-slate">Created</dt>
           <dd className="text-graphite-ink">{formatDate(assignment.createdAt?.toISOString())}</dd>
         </dl>
@@ -78,7 +103,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
 
       <div className="space-y-[8px]">
         <h2 className="font-lustria text-xl text-graphite-ink">Tasks</h2>
-        <AssignmentTasks tasks={tasks} userRole={session.user.role} />
+        <AssignmentTasks tasks={tasks} userRole={session.user.role} canDiscard={canDiscard} />
       </div>
     </div>
   );

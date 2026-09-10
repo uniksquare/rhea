@@ -1,9 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import path from "node:path";
 import type { AssignmentConfig, PublishTarget } from "@/lib/assignment-types";
-// Relative import with .ts extension: eve's bundler ignores tsconfig paths.
+// Relative imports with .ts extension: eve's bundler ignores tsconfig paths.
 import { deployWithVercel } from "./vercel.ts";
+import { assertWorkspacePath, resolveSiteDir } from "./assignment-validate.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -140,12 +140,15 @@ export async function lftpMirror({
   }
 }
 
-/** Absolute local site dir for a config (workspacePath/siteDir, default "shared"). */
+/**
+ * Absolute local site dir for a config (workspacePath/siteDir, default "shared").
+ * Defense in depth: throws unless workspacePath is inside an allowlisted
+ * RHEA_WORKSPACE_ROOTS root and the site dir stays inside workspacePath, even
+ * for rows that predate lib/assignment-validate.ts.
+ */
 export function siteDirOf(config: AssignmentConfig): string {
-  assertSafeValue("workspacePath", config.workspacePath, "path");
-  const siteDir = config.siteDir ?? "shared";
-  assertSafeValue("siteDir", siteDir, "path");
-  return path.join(config.workspacePath, siteDir);
+  const workspacePath = assertWorkspacePath(config.workspacePath);
+  return resolveSiteDir(workspacePath, config.siteDir ?? "shared");
 }
 
 /**

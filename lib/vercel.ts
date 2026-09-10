@@ -56,12 +56,22 @@ export async function deployWithVercel({
   if (process.env.HOME) env.HOME = process.env.HOME;
   const orgId = target.orgId ?? process.env.VERCEL_ORG_ID;
   const projectId = target.projectId ?? process.env.VERCEL_PROJECT_ID;
+  // A project id is mandatory so the CLI links to an existing project instead
+  // of auto-creating one from the directory name.
+  if (!projectId) {
+    throw new Error("Vercel target requires projectId (or VERCEL_PROJECT_ID)");
+  }
   if (orgId) env.VERCEL_ORG_ID = orgId;
-  if (projectId) env.VERCEL_PROJECT_ID = projectId;
+  env.VERCEL_PROJECT_ID = projectId;
+
+  // `--yes` skips the interactive link/scope prompts, which only makes sense
+  // when the CLI can resolve the project from env. Without both ids we let it
+  // fail loudly (non-interactive stdin) rather than accept defaults.
+  const nonInteractive = Boolean(orgId && projectId);
 
   const args = [
     "deploy",
-    "--yes",
+    ...(nonInteractive ? ["--yes"] : []),
     ...(prod ? ["--prod"] : []),
     ...(target.scope ? ["--scope", target.scope] : []),
   ];

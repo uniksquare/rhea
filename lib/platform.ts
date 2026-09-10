@@ -17,6 +17,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { encrypt, decrypt } from "./crypto";
 import type { AssignmentConfig, PublishTarget } from "./assignment-types";
+import { validateAssignmentConfig } from "./assignment-validate";
 
 export type { AssignmentConfig } from "./assignment-types";
 
@@ -24,6 +25,7 @@ export type TaskStatus =
   | "requested"
   | "planning"
   | "previewed"
+  | "publishing"
   | "published"
   | "discarded"
   | "failed";
@@ -93,7 +95,11 @@ export async function createAssignment(params: {
   /** Extra secrets to store encrypted alongside publishTarget.pass. */
   secrets?: Record<string, unknown>;
 }) {
-  const { orgId, roleKey, name, config, secrets } = params;
+  const { orgId, roleKey, name, secrets } = params;
+
+  // Throws AssignmentConfigError on a bad workspacePath, siteDir, publish
+  // target, etc. Runs before anything is encrypted or persisted.
+  const config = validateAssignmentConfig(params.config);
 
   const split = splitSecrets(config, secrets);
   const hasSecrets = Object.keys(split.secrets).length > 0;
@@ -228,6 +234,25 @@ export async function updateTask(
   });
   if (result.count === 0) throw new Error("Task not found");
   return result;
+}
+
+/**
+ * Atomic status transition: moves the Task from `from` to `to` in a single
+ * conditional update and returns true only when this call made the change.
+ * Two workers racing on the same Task get exactly one `true`, so callers can
+ * use it as a lock (e.g. previewed -> publishing before a deploy).
+ */
+export async function claimTaskStatus(
+  id: string,
+  orgId: string,
+  from: TaskStatus,
+  to: TaskStatus
+): Promise<boolean> {
+  const result = await prisma.task.updateMany({
+    where: { taskId: id, orgId, status: from },
+    data: { status: to, updatedAt: new Date() },
+  });
+  return result.count === 1;
 }
 
 export async function listTasks(orgId: string, assignmentId?: string) {

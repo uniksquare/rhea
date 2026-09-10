@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasMinRole, type Role } from "@/lib/rbac";
 import { createAssignment, listAssignments } from "@/lib/platform";
-import type { AssignmentConfig, PublishTarget } from "@/lib/assignment-types";
+import { AssignmentConfigError, validateAssignmentConfig } from "@/lib/assignment-validate";
+import type { AssignmentConfig } from "@/lib/assignment-types";
 
 const ROLE_KEYS = new Set(["web-developer", "on-call-engineer"]);
 
@@ -53,42 +54,33 @@ export async function POST(request: Request) {
     );
   }
 
-  const target = config.publishTarget as Partial<PublishTarget> & { type?: string };
-  let publishTarget: PublishTarget;
-  if (target.type === "hostinger-ftp") {
-    const t = target as Partial<Extract<PublishTarget, { type: "hostinger-ftp" }>>;
-    if (!t.host || !t.user || !t.remoteDir || !t.baseUrl) {
-      return NextResponse.json(
-        { error: "hostinger-ftp target needs host, user, remoteDir and baseUrl" },
-        { status: 400 }
-      );
-    }
-    // The password travels in `secrets.pass`; fold it into publishTarget so
-    // createAssignment encrypts it and strips it from the persisted config.
-    const pass = typeof secrets?.pass === "string" ? secrets.pass : "";
-    publishTarget = {
-      type: "hostinger-ftp",
-      host: t.host,
-      port: typeof t.port === "number" && Number.isFinite(t.port) ? t.port : undefined,
-      user: t.user,
-      pass,
-      remoteDir: t.remoteDir,
-      baseUrl: t.baseUrl,
-    };
-  } else if (target.type === "vercel") {
-    const t = target as Partial<Extract<PublishTarget, { type: "vercel" }>>;
-    publishTarget = { type: "vercel", projectId: t.projectId || undefined };
-  } else {
+  const target = config.publishTarget as { type?: unknown };
+  if (target.type !== "hostinger-ftp" && target.type !== "vercel") {
     return NextResponse.json({ error: "publishTarget.type must be hostinger-ftp or vercel" }, { status: 400 });
   }
 
-  const fullConfig: AssignmentConfig = {
-    repoUrl: config.repoUrl,
-    workspacePath: config.workspacePath,
-    siteDir: config.siteDir || undefined,
-    baseBranch: config.baseBranch || undefined,
-    publishTarget,
-  };
+  // The FTP password travels in `secrets.pass`; fold it into publishTarget so
+  // createAssignment encrypts it and strips it from the persisted config.
+  const pass = typeof secrets?.pass === "string" ? secrets.pass : "";
+  if (target.type === "hostinger-ftp" && pass.length === 0) {
+    return NextResponse.json({ error: "hostinger-ftp target needs secrets.pass" }, { status: 400 });
+  }
+
+  // Validate before anything touches the DB. The validator's messages never
+  // echo credentials, so they are safe to return as-is.
+  let fullConfig: AssignmentConfig;
+  try {
+    fullConfig = validateAssignmentConfig({
+      ...config,
+      publishTarget:
+        target.type === "hostinger-ftp" ? { ...(target as object), pass } : (target as object),
+    });
+  } catch (err) {
+    if (err instanceof AssignmentConfigError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Invalid assignment config" }, { status: 400 });
+  }
 
   // `pass` is consumed above; keep any other extra secrets.
   const { pass: _pass, ...extraSecrets } = secrets ?? {};
@@ -103,6 +95,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(row, { status: 201 });
   } catch (err: any) {
+    if (err instanceof AssignmentConfigError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     return NextResponse.json({ error: String(err?.message || err).slice(0, 500) }, { status: 500 });
   }
 }

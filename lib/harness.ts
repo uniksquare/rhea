@@ -51,11 +51,53 @@ function childEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
+/** Tools a read-only (planning) run may use. Strict subset of SAFE_TOOLS. */
+export const READ_ONLY_TOOLS = ["Read", "Glob", "Grep"] as const;
+
+/**
+ * Tools that are always denied. `allowedTools` only pre-approves; it does not
+ * block anything, so the deny list is what actually keeps the model from
+ * running Bash or reaching the network.
+ */
+export const ALWAYS_DISALLOWED_TOOLS = ["Bash", "WebFetch", "WebSearch"] as const;
+
+/** Additional denies for read-only runs: every mutating built-in. */
+export const READ_ONLY_DISALLOWED_TOOLS = ["Edit", "MultiEdit", "Write", "NotebookEdit"] as const;
+
 function effectiveTools(requested: string[] | undefined): string[] {
   const base = requested?.length ? requested : [...SAFE_TOOLS];
   const safe = new Set<string>(SAFE_TOOLS);
   const tools = base.filter((t) => safe.has(t));
   return tools.length ? tools : [...SAFE_TOOLS];
+}
+
+/**
+ * Resolve the allow/deny tool lists for a run. Pure; exported for tests.
+ *
+ * - `allowed` is `allowedTools` intersected with SAFE_TOOLS (default: all of
+ *   SAFE_TOOLS), and further intersected with READ_ONLY_TOOLS when `readOnly`.
+ * - `disallowed` always contains ALWAYS_DISALLOWED_TOOLS, plus every mutating
+ *   tool when `readOnly`, plus whatever the caller passes in `disallowedTools`.
+ *   Anything in `disallowed` is removed from `allowed` so the two never overlap.
+ */
+export function resolveToolPolicy(opts: {
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  readOnly?: boolean;
+}): { allowed: string[]; disallowed: string[] } {
+  const disallowedSet = new Set<string>(ALWAYS_DISALLOWED_TOOLS);
+  if (opts.readOnly) for (const t of READ_ONLY_DISALLOWED_TOOLS) disallowedSet.add(t);
+  for (const t of opts.disallowedTools ?? []) if (t) disallowedSet.add(t);
+
+  let allowed = effectiveTools(opts.allowedTools);
+  if (opts.readOnly) {
+    const ro = new Set<string>(READ_ONLY_TOOLS);
+    allowed = allowed.filter((t) => ro.has(t));
+    if (!allowed.length) allowed = [...READ_ONLY_TOOLS];
+  }
+  allowed = allowed.filter((t) => !disallowedSet.has(t));
+
+  return { allowed, disallowed: [...disallowedSet] };
 }
 
 type RawUsage = {
@@ -119,6 +161,9 @@ type RunOpts = {
   workspacePath: string;
   prompt: string;
   allowedTools: string[];
+  disallowedTools: string[];
+  /** "plan" for read-only runs, "acceptEdits" otherwise. */
+  permissionMode: "plan" | "acceptEdits";
   model?: string;
   maxTurns: number;
   env: NodeJS.ProcessEnv;
@@ -130,12 +175,15 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
   const sdk = (await import(/* webpackIgnore: true */ SDK_SPECIFIER)) as {
     query: (params: { prompt: string; options?: Record<string, unknown> }) => AsyncIterable<RawResult>;
   };
+  // The installed SDK's Options type accepts permissionMode "plan" and
+  // disallowedTools (see node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts).
   const q = sdk.query({
     prompt: opts.prompt,
     options: {
       cwd: opts.workspacePath,
       allowedTools: opts.allowedTools,
-      permissionMode: "acceptEdits",
+      disallowedTools: opts.disallowedTools,
+      permissionMode: opts.permissionMode,
       maxTurns: opts.maxTurns,
       env: opts.env,
       ...(opts.model ? { model: opts.model } : {}),
@@ -157,8 +205,12 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
     "json",
     "--allowedTools",
     opts.allowedTools.join(","),
+    // The installed claude CLI (2.1.x) supports --disallowedTools; see
+    // `claude --help`. Deny always wins over allow.
+    "--disallowedTools",
+    opts.disallowedTools.join(","),
     "--permission-mode",
-    "acceptEdits",
+    opts.permissionMode,
   ];
   // Note: the installed `claude` CLI has no --max-turns flag, so maxTurns is
   // only enforced on the SDK path.
@@ -197,21 +249,33 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
  *
  * The child gets a minimal allowlisted env (see CHILD_ENV_ALLOWLIST), never
  * the full process.env. `allowedTools` is intersected with SAFE_TOOLS, so
- * tenant config can only narrow the tool set. Env honored:
- * CLAUDE_CODE_USE_VERTEX (reports provider "vertex"), CLAUDE_CODE_USE_BEDROCK,
- * plus whatever the SDK/CLI reads for auth. Secrets are never logged.
+ * tenant config can only narrow the tool set; Bash/WebFetch/WebSearch are
+ * always passed as disallowed (see resolveToolPolicy). With `readOnly`, the
+ * run uses permission mode "plan", allows only Read/Glob/Grep, and denies
+ * every mutating tool. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
+ * "vertex"), CLAUDE_CODE_USE_BEDROCK, plus whatever the SDK/CLI reads for
+ * auth. Secrets are never logged.
  */
 export async function runHarness(opts: {
   workspacePath: string;
   prompt: string;
   allowedTools?: string[];
+  disallowedTools?: string[];
+  readOnly?: boolean;
   model?: string;
   maxTurns?: number;
 }): Promise<HarnessResult> {
+  const policy = resolveToolPolicy({
+    allowedTools: opts.allowedTools,
+    disallowedTools: opts.disallowedTools,
+    readOnly: opts.readOnly,
+  });
   const normalized: RunOpts = {
     workspacePath: opts.workspacePath,
     prompt: opts.prompt,
-    allowedTools: effectiveTools(opts.allowedTools),
+    allowedTools: policy.allowed,
+    disallowedTools: policy.disallowed,
+    permissionMode: opts.readOnly ? "plan" : "acceptEdits",
     model: opts.model,
     maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,
     env: childEnv(),

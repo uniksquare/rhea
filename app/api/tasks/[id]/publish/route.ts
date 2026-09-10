@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasMinRole, type Role } from "@/lib/rbac";
-import { getTask, resolveAssignmentConfig, updateTask } from "@/lib/platform";
+import { getTask, resolveAssignmentConfig, updateTask, claimTaskStatus } from "@/lib/platform";
 import { checkoutBranch } from "@/lib/github";
 import { publishLive } from "@/lib/publisher";
 
@@ -23,14 +23,17 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
-  if (task.status !== "previewed") {
-    return NextResponse.json(
-      { error: `Only previewed tasks can be published (status is "${task.status}")` },
-      { status: 409 }
-    );
-  }
   if (!task.branch) {
     return NextResponse.json({ error: "Task has no branch to publish" }, { status: 409 });
+  }
+
+  // Atomically claim the task so two concurrent publish requests cannot both proceed.
+  const claimed = await claimTaskStatus(id, orgId, "previewed", "publishing");
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "Task is not previewed or is already being published" },
+      { status: 409 }
+    );
   }
 
   try {
@@ -42,9 +45,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ ...task, status: "published", publishedUrl: url });
   } catch (err: any) {
     const message = String(err?.message || err).slice(0, ERR_MAX);
-    // Record the failure on the task but leave it previewed so it can be retried.
+    // Record the failure and revert the claim so the task can be retried.
     try {
-      await updateTask(id, orgId, { error: message });
+      await updateTask(id, orgId, { status: "previewed", error: message });
     } catch {
       // ignore secondary failure
     }
