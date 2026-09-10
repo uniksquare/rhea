@@ -248,6 +248,7 @@ model Task {
   prUrl        String?   @map("pr_url")
   publishedUrl String?   @map("published_url")
   error        String?
+  plan         Json?     @map("plan")
   createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
 

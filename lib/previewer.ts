@@ -2,6 +2,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import type { AssignmentConfig, PublishTarget } from "@/lib/assignment-types";
+// Relative import with .ts extension: eve's bundler ignores tsconfig paths.
+import { deployWithVercel } from "./vercel.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -151,7 +153,9 @@ export function siteDirOf(config: AssignmentConfig): string {
  *
  * hostinger-ftp: mirrors `<workspacePath>/<siteDir>` to
  * `<remoteDir>/preview/<slug(branch)>` and returns `${baseUrl}/preview/<slug>/`.
- * vercel: not implemented yet (throws).
+ * vercel: runs `vercel deploy` in `<workspacePath>/<siteDir>` and returns the
+ * preview deployment URL. Auto deploy on main merge comes from Vercel's own Git
+ * integration when the repo is linked; this CLI path is for FTP-less assignments.
  */
 export async function deployPreview({
   config,
@@ -162,8 +166,7 @@ export async function deployPreview({
 }): Promise<{ url: string }> {
   const target = config.publishTarget;
   if (target.type === "vercel") {
-    // TODO: implement with `vercel deploy` once the Vercel target is wired up.
-    throw new Error("vercel preview not implemented yet");
+    return deployWithVercel({ cwd: siteDirOf(config), prod: false, target });
   }
   const s = slug(branch);
   assertSafeValue("branch slug", s, "path");

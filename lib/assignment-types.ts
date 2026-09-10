@@ -16,7 +16,15 @@ export type PublishTarget =
       /** Public URL of remoteDir, without trailing slash. */
       baseUrl: string;
     }
-  | { type: "vercel"; projectId?: string };
+  | {
+      type: "vercel";
+      projectId?: string;
+      orgId?: string;
+      /** Team slug passed as `--scope`. */
+      scope?: string;
+      /** Branch whose merges Vercel's Git integration deploys to production. Default "main". */
+      prodBranch?: string;
+    };
 
 /** Everything a single assignment needs to run, preview, and publish. */
 export type AssignmentConfig = {
