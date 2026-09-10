@@ -49,3 +49,5 @@ rhea is an **AI teammate** for the Uniksquare team and invited agency-client ten
 - T6 approvals inbox merged (4eb8f13), review clean. T8 Telegram design doc started in wt-1 (feat/telegram-design). T2 fix (path-scoped harness permissions + working-status claim) in progress in wt-2.
 
 - T8 Telegram design doc merged (f99488d): recommends a thin webhook mapping chats to tenants (works on Max, no API key) before the Eve telegramChannel option. Eve routing task (list_assignments tool + router prompt) started in wt-1 (feat/eve-routing). T9 Vercel token queued behind the T2 merge (both touch lib/platform.ts).
+
+- Eve routing merged (list_assignments + router prompt; eve build 0 diagnostics). Finding: Eve subagents inherit parent auth incl. orgId (dist evidence in the worker report), so the web-developer subagent works under the Eve chat once an LLM key exists. wt-1 now on feat/gaps-a (discard cleans its worktree; Usage page shows billing).
