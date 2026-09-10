@@ -6,6 +6,7 @@ import { getAssignment, listTasks } from "@/lib/platform";
 import { hasMinRole, type Role } from "@/lib/rbac";
 import { roleLabel, formatDate } from "@/app/_components/assignments-list";
 import { AssignmentTasks } from "@/app/_components/assignments-tasks";
+import { AssignmentSecrets } from "@/app/_components/assignment-secrets";
 
 function isHttpUrl(value: string | null | undefined): value is string {
   return !!value && (value.startsWith("https://") || value.startsWith("http://"));
@@ -45,6 +46,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
   const config = assignment.config;
   const target = config.publishTarget;
   const canDiscard = hasMinRole(session.user.role as Role, "OPERATOR");
+  const canManageSecrets = hasMinRole(session.user.role as Role, "ADMIN");
   const baseUrl = target?.type === "hostinger-ftp" ? target.baseUrl : null;
 
   return (
@@ -70,6 +72,11 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
               <span className="break-all">{config.repoUrl}</span>
             )}
           </p>
+          {canManageSecrets && (
+            <div className="pt-[8px]">
+              <AssignmentSecrets assignmentId={id} targetType={target?.type ?? ""} />
+            </div>
+          )}
         </div>
         <dl className="grid grid-cols-2 gap-x-24 gap-y-[6px] text-xs bg-soft-snow border border-mist rounded p-16 shadow-sm min-w-[280px]">
           <dt className="font-mono uppercase tracking-wider text-[10px] text-slate">Status</dt>
