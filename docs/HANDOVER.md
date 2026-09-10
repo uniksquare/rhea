@@ -1,0 +1,30 @@
+# Handover (overnight autonomous run, started 2026-09-11)
+
+Read this first. It is updated after every loop iteration. Newest notes at the bottom of each section.
+
+## What you (Soubhagya) want to build, in one paragraph
+
+rhea is an **AI teammate** for the Uniksquare team and invited agency-client tenants (not public). It works in **Roles**, is given **Assignments** (a Role bound to one client/repo with its own settings and encrypted keys), and completes **Tasks** from request to done. The first Role is **Web Developer**: a client or teammate describes a change (or pastes a long doc), rhea studies it and proposes a plan, makes the change on a git branch, deploys a **preview URL**, and after human **sign-off** publishes to production (Hostinger FTP for yogaessence; Vercel for Vercel-hosted sites). **Discard is soft** (branch kept, revivable). Every Task is auditable with **token usage and cost per tenant, role, and task**. The brain for code work is **Claude Code headless on your Max plan** (no API key); chat orchestration through Eve (Gemini) exists but is not on the critical path. Incident response is just one Role among many; more Roles (App Developer, Code Reviewer, Monitor, Researcher) come later, each a folder plus a job description. Telegram is a later channel. Nothing is tested in a browser; verification is typecheck, unit tests, CLI dry-runs, and Eve build diagnostics.
+
+## Ground rules I am following
+
+- Two git worktrees, two parallel tasks max: `../rhea-wt-1` and `../rhea-wt-2`, each on a `feat/*` branch off `rhea-v2`.
+- Per task: build -> typecheck + tests -> reviewer -> fix -> re-verify -> merge into `rhea-v2` (local merge, no push).
+- No browser. No `--deploy` to the live Hostinger folder. No `git push`. No questions to you; decisions are logged below.
+- If a usage limit hits, I wait for the reset and continue.
+
+## Decisions made without you (please confirm or veto tomorrow)
+
+- D1: Web Developer conversations run as **headless Claude Code sessions on Max** (one session per Task, resumed per message), not through Eve's model. Eve routing to the subagent is deprioritized to last (needs an API key to exercise).
+- D2: Task order: harness e2e -> client RBAC -> task chat endpoint + task page chat -> worktree per task -> plan/edit/preview via chat -> approvals inbox -> Fly worker image -> Telegram design doc -> Vercel per-assignment token -> gap features.
+- D3: Merges into `rhea-v2` are local only. You decide when to push.
+
+## Flags for you
+
+- F1: Max headless is fine for internal use; if agency clients hammer it, Max rate limits and Anthropic's personal-use terms apply. Drop-in fix later: `ANTHROPIC_API_KEY` in `.env.local`, no design change.
+- F2: Nothing has been deployed to Hostinger. When you want a real preview on the live server, run `npx tsx scripts/run-task.ts --assignment 2fea37fe-650d-498b-9da2-b8e7eb7c6c7c --request "..." --harness --deploy` yourself, or tell me "deploy ok".
+- F3: `siteDir: "."` is allowed for assignments whose workspace is under `RHEA_WORKSPACE_ROOTS`. Say if you want the workspace root itself to be un-mirrorable.
+
+## Status log (newest last)
+
+- 2026-09-11 start: `rhea-v2` at `e67830f`, typecheck 0 errors, 45/46 tests. Queue above. Starting T1 (harness e2e, real Claude via CLI on Max, dry-run) and T5 (client RBAC) in parallel.
