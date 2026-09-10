@@ -92,6 +92,7 @@ export default defineTool({
         prompt,
         allowedTools: config.allowedTools,
         model: config.model,
+        scope: { siteDir },
       });
     } catch (err) {
       await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });

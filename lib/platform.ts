@@ -23,6 +23,8 @@ export type { AssignmentConfig } from "./assignment-types";
 
 export type TaskStatus =
   | "requested"
+  /** A harness turn is in flight; the task is locked (claimed via claimTaskStatus). */
+  | "working"
   | "planning"
   | "previewed"
   | "publishing"

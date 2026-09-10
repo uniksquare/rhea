@@ -138,6 +138,60 @@ function effectiveTools(requested: string[] | undefined): string[] {
 }
 
 /**
+ * Path-qualified permission rules ("Tool(pattern)") that a scoped run always
+ * denies, on top of ALWAYS_DISALLOWED_TOOLS. Deny rules win over allow rules.
+ *
+ * Rule syntax: `Tool(pattern)` (see `claude --help` for --allowedTools /
+ * --disallowedTools, e.g. "Bash(git *)"; the SDK's `sandbox.filesystem` docs in
+ * node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts refer to "Read(...)" and
+ * "Edit(...)" permission rules). Patterns are gitignore-style, relative to the
+ * run's cwd; `../` prefixes address parent directories, `~/` the home dir,
+ * `//` an absolute path.
+ *
+ * `~/**` is deliberately NOT used: it would match the worktree itself whenever
+ * the workspace lives under $HOME, and since deny wins that would block every
+ * read. Reads/edits outside the cwd are instead stopped by permission mode
+ * "default", which prompts for them and, headless, denies.
+ */
+export const SCOPE_DENY_RULES = [
+  "Read(../**)",
+  "Read(**/.env*)",
+  "Read(**/.git/**)",
+  "Edit(../**)",
+  "Write(../**)",
+  "MultiEdit(../**)",
+  "Glob(../**)",
+  "Grep(../**)",
+] as const;
+
+/** Where a scoped run may read and edit: one directory under the run's cwd. */
+export type HarnessScope = { siteDir: string };
+
+/**
+ * Normalize a siteDir for use in a permission rule: strip leading "./" and
+ * trailing "/", reject anything that escapes the cwd. Pure; exported for tests.
+ */
+export function normalizeSiteDir(siteDir: string): string {
+  let dir = siteDir.trim().replace(/\\/g, "/");
+  dir = dir.replace(/^(\.\/)+/, "").replace(/\/+$/, "");
+  if (!dir || dir === "." || dir.startsWith("/") || dir.startsWith("~")) {
+    throw new Error(`harness: invalid siteDir "${siteDir}"`);
+  }
+  if (dir.split("/").some((seg) => seg === "..")) {
+    throw new Error(`harness: siteDir must stay inside the workspace: "${siteDir}"`);
+  }
+  if (/[()*?[\]{},\s]/.test(dir)) {
+    throw new Error(`harness: siteDir contains characters not allowed in a permission rule: "${siteDir}"`);
+  }
+  return dir;
+}
+
+/** `Tool(./<siteDir>/**)` for one tool. Pure; exported for tests. */
+export function scopedRule(tool: string, siteDir: string): string {
+  return `${tool}(./${normalizeSiteDir(siteDir)}/**)`;
+}
+
+/**
  * Resolve the allow/deny tool lists for a run. Pure; exported for tests.
  *
  * - `allowed` is `allowedTools` intersected with SAFE_TOOLS (default: all of
@@ -145,11 +199,18 @@ function effectiveTools(requested: string[] | undefined): string[] {
  * - `disallowed` always contains ALWAYS_DISALLOWED_TOOLS, plus every mutating
  *   tool when `readOnly`, plus whatever the caller passes in `disallowedTools`.
  *   Anything in `disallowed` is removed from `allowed` so the two never overlap.
+ * - With `scope`, every allowed tool becomes the path-qualified rule
+ *   `Tool(./<siteDir>/**)` (no bare tool names are pre-approved) and
+ *   SCOPE_DENY_RULES are added to `disallowed`. The CLI's file-rule matcher
+ *   consults the Read family (Read, Glob, Grep) and the Edit family (Edit,
+ *   MultiEdit, Write), so `Read(./x/**)` and `Edit(./x/**)` are the
+ *   load-bearing entries; the others are accepted and harmless.
  */
 export function resolveToolPolicy(opts: {
   allowedTools?: string[];
   disallowedTools?: string[];
   readOnly?: boolean;
+  scope?: HarnessScope;
 }): { allowed: string[]; disallowed: string[] } {
   const disallowedSet = new Set<string>(ALWAYS_DISALLOWED_TOOLS);
   if (opts.readOnly) for (const t of READ_ONLY_DISALLOWED_TOOLS) disallowedSet.add(t);
@@ -163,7 +224,36 @@ export function resolveToolPolicy(opts: {
   }
   allowed = allowed.filter((t) => !disallowedSet.has(t));
 
+  if (opts.scope) {
+    const siteDir = normalizeSiteDir(opts.scope.siteDir);
+    allowed = allowed.map((t) => scopedRule(t, siteDir));
+    for (const r of SCOPE_DENY_RULES) disallowedSet.add(r);
+  }
+
   return { allowed, disallowed: [...disallowedSet] };
+}
+
+/** Permission mode for a run. Pure; exported for tests. */
+export function resolvePermissionMode(opts: {
+  readOnly?: boolean;
+  scope?: HarnessScope;
+}): PermissionMode {
+  if (opts.readOnly) return "plan";
+  // Scoped runs use "default" so any file action outside the allow rules
+  // prompts and, headless, is denied; "acceptEdits" would auto-approve edits
+  // anywhere under the cwd.
+  return opts.scope ? "default" : "acceptEdits";
+}
+
+export type PermissionMode = "plan" | "acceptEdits" | "default";
+
+/**
+ * The installed CLI (2.1.x) lists "manual" rather than "default" among
+ * `--permission-mode` choices (see `claude --help`); sdk.d.ts documents
+ * 'manual' as an alias for 'default'. The SDK accepts "default" directly.
+ */
+export function cliPermissionMode(mode: PermissionMode): string {
+  return mode === "default" ? "manual" : mode;
 }
 
 type RawUsage = {
@@ -238,8 +328,8 @@ type RunOpts = {
   prompt: string;
   allowedTools: string[];
   disallowedTools: string[];
-  /** "plan" for read-only runs, "acceptEdits" otherwise. */
-  permissionMode: "plan" | "acceptEdits";
+  /** "plan" for read-only runs, "default" for scoped runs, "acceptEdits" otherwise. */
+  permissionMode: PermissionMode;
   model?: string;
   maxTurns: number;
   /** Continue an earlier headless session (SDK `resume`, CLI `--resume`). */
@@ -253,7 +343,7 @@ export function buildCliArgs(opts: {
   prompt: string;
   allowedTools: string[];
   disallowedTools: string[];
-  permissionMode: "plan" | "acceptEdits";
+  permissionMode: PermissionMode;
   model?: string;
   resumeSessionId?: string;
 }): string[] {
@@ -269,7 +359,7 @@ export function buildCliArgs(opts: {
     "--disallowedTools",
     opts.disallowedTools.join(","),
     "--permission-mode",
-    opts.permissionMode,
+    cliPermissionMode(opts.permissionMode),
   ];
   // Note: the installed `claude` CLI has no --max-turns flag, so maxTurns is
   // only enforced on the SDK path.
@@ -284,8 +374,10 @@ async function runViaSdk(opts: RunOpts): Promise<HarnessResult> {
   const sdk = (await import(/* webpackIgnore: true */ SDK_SPECIFIER)) as {
     query: (params: { prompt: string; options?: Record<string, unknown> }) => AsyncIterable<RawResult>;
   };
-  // The installed SDK's Options type accepts permissionMode "plan" and
-  // disallowedTools (see node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts).
+  // The installed SDK's Options type accepts permissionMode "plan" | "default"
+  // | "acceptEdits" (PermissionMode) and disallowedTools; allowedTools /
+  // disallowedTools take "Tool(pattern)" rule strings (see
+  // node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts).
   const q = sdk.query({
     prompt: opts.prompt,
     options: {
@@ -351,7 +443,11 @@ async function runViaCli(opts: RunOpts): Promise<HarnessResult> {
  * narrow the tool set; Bash/WebFetch/WebSearch are always passed as
  * disallowed (see resolveToolPolicy). With `readOnly`, the run uses
  * permission mode "plan", allows only Read/Glob/Grep, and denies every
- * mutating tool. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
+ * mutating tool. With `scope: { siteDir }`, every allowed tool is
+ * path-qualified to `./<siteDir>/**`, SCOPE_DENY_RULES are added, and the
+ * permission mode is "default" (not "acceptEdits") so a file action outside
+ * the allow rules prompts and, headless, is denied; this applies to both the
+ * SDK and CLI engines. Env honored: CLAUDE_CODE_USE_VERTEX (reports provider
  * "vertex"), CLAUDE_CODE_USE_BEDROCK, plus whatever the SDK/CLI reads for
  * auth. Secrets are never logged. `raw.engine` records which engine ran.
  *
@@ -370,18 +466,21 @@ export async function runHarness(opts: {
   maxTurns?: number;
   engine?: HarnessEngine;
   resumeSessionId?: string;
+  /** Restrict reads and edits to `<workspacePath>/<siteDir>` via path-qualified rules. */
+  scope?: HarnessScope;
 }): Promise<HarnessResult> {
   const policy = resolveToolPolicy({
     allowedTools: opts.allowedTools,
     disallowedTools: opts.disallowedTools,
     readOnly: opts.readOnly,
+    scope: opts.scope,
   });
   const normalized: RunOpts = {
     workspacePath: opts.workspacePath,
     prompt: opts.prompt,
     allowedTools: policy.allowed,
     disallowedTools: policy.disallowed,
-    permissionMode: opts.readOnly ? "plan" : "acceptEdits",
+    permissionMode: resolvePermissionMode({ readOnly: opts.readOnly, scope: opts.scope }),
     // Always pass an explicit model so the child never falls back to Opus.
     model: resolveModel(opts.model, process.env),
     maxTurns: opts.maxTurns ?? DEFAULT_MAX_TURNS,

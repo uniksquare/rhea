@@ -176,3 +176,10 @@ test("toResult: defaults to api billing and reports errors as ok=false", () => {
   assert.equal(r.output, "harness ended: error_max_turns");
   assert.equal(r.usage.costUsd, 0.5);
 });
+
+test("buildCliArgs: permission mode default is passed to the CLI as manual", () => {
+  const args = buildCliArgs({ ...baseArgs, permissionMode: "default" });
+  const p = args.indexOf("--permission-mode");
+  assert.ok(p >= 0);
+  assert.equal(args[p + 1], "manual");
+});

@@ -23,8 +23,15 @@ export const FALLBACK_SUMMARY_MAX = 2000;
 /** Role key recorded in the usage ledger for chat turns. */
 export const TASK_ROLE_KEY = "web-developer";
 
-/** Statuses in which the chat no longer accepts turns. */
-export const CHAT_LOCKED_STATUSES: readonly TaskStatus[] = ["published", "discarded", "publishing"];
+/** Statuses in which the chat does not accept turns ("working" = a turn is already running). */
+export const CHAT_LOCKED_STATUSES: readonly TaskStatus[] = ["published", "discarded", "publishing", "working"];
+
+/** Statuses from which a chat turn may claim the task (moving it to "working"). */
+export const CHAT_CLAIMABLE_STATUSES: readonly TaskStatus[] = ["requested", "planning", "previewed", "failed"];
+
+export function isChatClaimable(status: string): status is TaskStatus {
+  return (CHAT_CLAIMABLE_STATUSES as readonly string[]).includes(status);
+}
 
 /** Relative path of the Web Developer job description (the Role's instructions). */
 export const JOB_DESCRIPTION_PATH = path.join("agent", "subagents", "web-developer", "instructions.md");

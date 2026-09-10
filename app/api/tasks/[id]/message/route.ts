@@ -5,6 +5,7 @@ import {
   getTask,
   getAssignment,
   updateTask,
+  claimTaskStatus,
   addTaskMessage,
   recordUsage,
   type TaskMessageMode,
@@ -19,6 +20,7 @@ import {
   branchForTask,
   buildTaskPrompt,
   errorText,
+  isChatClaimable,
   isChatLocked,
   loadJobDescription,
   planFromOutput,
@@ -71,7 +73,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
-  if (isChatLocked(task.status)) {
+  if (task.status === "working") {
+    return NextResponse.json({ error: "Task is busy" }, { status: 409 });
+  }
+  if (isChatLocked(task.status) || !isChatClaimable(task.status)) {
     return NextResponse.json(
       { error: `Task is ${task.status}; it no longer accepts messages` },
       { status: 409 }
@@ -86,13 +91,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const branch = task.branch ?? branchForTask(task.taskId);
   const firstTurn = !task.sessionId;
 
+  // Lock the task for the duration of this turn. The atomic claim is what
+  // stops two concurrent turns from resuming the same session and racing on
+  // the worktree; the loser gets 409.
+  const prev: TaskStatus = task.status;
+  const claimed = await claimTaskStatus(id, orgId, prev, "working");
+  if (!claimed) {
+    return NextResponse.json({ error: "Task is busy" }, { status: 409 });
+  }
+
+  // Status after a failed turn: back to where it was, except a task that had
+  // never progressed past "requested" becomes "failed".
+  const failedStatus: TaskStatus = prev === "requested" ? "failed" : prev;
+
   await addTaskMessage({ orgId, taskId: id, role: "user", content: message, mode });
 
   const fail = async (err: unknown, status = 502) => {
     const text = errorText(err);
     try {
       await addTaskMessage({ orgId, taskId: id, role: "assistant", content: `Error: ${text}`, mode });
-      await updateTask(id, orgId, { status: "failed", error: text });
+    } catch {
+      // ignore secondary failure
+    }
+    try {
+      await updateTask(id, orgId, { status: failedStatus, error: text });
     } catch {
       // ignore secondary failure
     }
@@ -128,6 +150,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             readOnly: true,
             model: config.model,
             resumeSessionId: task.sessionId ?? undefined,
+            scope: { siteDir },
           })
         : await runHarness({
             workspacePath: wt.workspacePath,
@@ -135,6 +158,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             allowedTools: config.allowedTools,
             model: config.model,
             resumeSessionId: task.sessionId ?? undefined,
+            scope: { siteDir },
           });
   } catch (err) {
     return fail(err);
@@ -172,8 +196,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let sha: string | undefined;
     if (mode === "plan") {
       plan = planFromOutput(harness.output);
-      const status: TaskStatus | undefined =
-        task.status === "requested" || task.status === "failed" ? "planning" : undefined;
+      // A plan turn changes no files, so the task returns to the status it
+      // had (a previewed task stays previewed); a fresh or failed task moves
+      // to "planning" now that it has a plan.
+      const status: TaskStatus = prev === "requested" || prev === "failed" ? "planning" : prev;
       await updateTask(id, orgId, { plan, sessionId: harness.sessionId, status });
     } else {
       // Only stage the site directory so nothing outside siteDir can be committed.

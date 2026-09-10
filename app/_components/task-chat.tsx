@@ -36,7 +36,7 @@ type Busy = { kind: Mode | "preview" | "publish" | "discard"; text?: string } | 
 type PendingAction = "publish" | "discard" | null;
 
 const MESSAGE_MAX = 20000;
-const LOCKED = new Set(["published", "discarded", "publishing"]);
+const LOCKED = new Set(["published", "discarded", "publishing", "working"]);
 
 const primaryBtn =
   "bg-iris-violet hover:bg-iris-violet/90 text-paper-white border border-transparent shadow-sm rounded font-mono text-[11px] uppercase tracking-wider px-[16px] py-[10px] flex items-center gap-[8px] transition-all cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed";

@@ -80,6 +80,7 @@ export default defineTool({
         allowedTools: PLAN_TOOLS,
         readOnly: true,
         model: config.model,
+        scope: { siteDir },
       });
     } catch (err) {
       await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });

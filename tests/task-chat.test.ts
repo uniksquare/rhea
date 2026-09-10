@@ -4,6 +4,7 @@ import {
   branchForTask,
   buildTaskPrompt,
   isChatLocked,
+  isChatClaimable,
   parsePlan,
   planFromOutput,
   planFromJson,
@@ -18,9 +19,14 @@ test("branchForTask: task/<first 8 alnum chars>, same as edit_site", () => {
   assert.equal(branchForTask("abc"), "task/abc");
 });
 
-test("isChatLocked: published, discarded and publishing tasks reject messages", () => {
-  for (const s of ["published", "discarded", "publishing"]) assert.equal(isChatLocked(s), true, s);
+test("isChatLocked: published, discarded, publishing and working tasks reject messages", () => {
+  for (const s of ["published", "discarded", "publishing", "working"]) assert.equal(isChatLocked(s), true, s);
   for (const s of ["requested", "planning", "previewed", "failed"]) assert.equal(isChatLocked(s), false, s);
+});
+
+test("isChatClaimable: only requested, planning, previewed and failed tasks can start a turn", () => {
+  for (const s of ["requested", "planning", "previewed", "failed"]) assert.equal(isChatClaimable(s), true, s);
+  for (const s of ["working", "publishing", "published", "discarded", "bogus"]) assert.equal(isChatClaimable(s), false, s);
 });
 
 test("errorText: truncates to 500 chars and handles non-Errors", () => {

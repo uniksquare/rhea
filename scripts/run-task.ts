@@ -155,6 +155,7 @@ async function main() {
         model: config.model,
         engine: args.engine,
         resumeSessionId,
+        scope: { siteDir },
       });
       const engine = (harness.raw as { engine?: string } | undefined)?.engine ?? "?";
       if (harness.sessionId) await updateTask(taskId, orgId, { sessionId: harness.sessionId });
