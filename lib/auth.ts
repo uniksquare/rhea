@@ -79,8 +79,14 @@ if (isDevBypassEnabled) {
         email: { label: "Email", type: "email" },
       },
       async authorize(credentials) {
-        const email = ((credentials?.email as string) || "dev@local.test").trim();
+        const email = ((credentials?.email as string) || "").trim();
         if (!email) return null;
+
+        const allowedEmail = (process.env.AUTH_DEV_EMAIL ?? "dev@local.test")
+          .trim()
+          .toLowerCase();
+
+        if (email.toLowerCase() !== allowedEmail) return null;
 
         return {
           id: email,

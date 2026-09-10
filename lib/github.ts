@@ -72,19 +72,52 @@ export async function ensureBranch({
 }
 
 /**
- * Stage everything and commit. Returns `changed=false` (no throw) when the
- * tree is clean; `sha` is then the current HEAD.
+ * Check out an existing branch. Throws a readable error if the working tree
+ * is dirty (so nothing is carried across branches) or the branch is missing.
+ */
+export async function checkoutBranch({
+  workspacePath,
+  branch,
+}: {
+  workspacePath: string;
+  branch: string;
+}): Promise<void> {
+  const status = await git(["status", "--porcelain"], workspacePath);
+  if (status.stdout) {
+    throw new Error(
+      `cannot check out "${branch}" in ${workspacePath}: working tree has uncommitted changes`,
+    );
+  }
+  const exists = await git(["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], workspacePath, {
+    allowFail: true,
+  });
+  if (exists.code !== 0) {
+    throw new Error(`cannot check out "${branch}" in ${workspacePath}: branch does not exist`);
+  }
+  await git(["checkout", branch], workspacePath);
+}
+
+/**
+ * Stage and commit. With `paths`, only those paths (relative to the
+ * workspace) are staged; without it, the whole tree is. Returns
+ * `changed=false` (no throw) when nothing is staged; `sha` is then HEAD.
  */
 export async function commitAll({
   workspacePath,
   message,
+  paths,
 }: {
   workspacePath: string;
   message: string;
+  paths?: string[];
 }): Promise<{ sha: string; changed: boolean }> {
-  await git(["add", "-A"], workspacePath);
-  const status = await git(["status", "--porcelain"], workspacePath);
-  if (!status.stdout) {
+  if (paths && paths.length) {
+    await git(["add", "-A", "--", ...paths], workspacePath);
+  } else {
+    await git(["add", "-A"], workspacePath);
+  }
+  const staged = await git(["diff", "--cached", "--quiet"], workspacePath, { allowFail: true });
+  if (staged.code === 0) {
     const head = await git(["rev-parse", "HEAD"], workspacePath);
     return { sha: head.stdout, changed: false };
   }

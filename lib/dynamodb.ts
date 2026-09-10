@@ -57,6 +57,26 @@ function sanitizeValue(value: any): any {
   return value;
 }
 
+// Postgres' jsonb type rejects strings containing NUL characters (\u0000), so
+// strip them recursively before any JSON.stringify that lands in a ::jsonb
+// column.
+function stripNulBytes(value: any): any {
+  if (typeof value === "string") {
+    return value.replace(/\u0000/g, "");
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripNulBytes);
+  }
+  if (value !== null && typeof value === "object") {
+    const cleaned: any = {};
+    for (const key of Object.keys(value)) {
+      cleaned[key] = stripNulBytes(value[key]);
+    }
+    return cleaned;
+  }
+  return value;
+}
+
 function keyValue(spec: TableSpec, key: Record<string, any>): string {
   const value = key[spec.pk];
   if (value === undefined || value === null) {
@@ -98,10 +118,13 @@ function parseUpdateExpression(
       }
       attr = resolved;
     }
-    if (!placeholder.startsWith(":") || !(placeholder in values)) {
+    if (!placeholder.startsWith(":")) {
       throw new Error(`ExpressionAttributeValues is missing "${placeholder}"`);
     }
-    patch[attr] = values[placeholder];
+    // A missing or undefined value (eg. an optional field like
+    // event.data.output that is absent on some hook events) is treated as
+    // null rather than a hard failure, so the update still applies.
+    patch[attr] = placeholder in values ? values[placeholder] : null;
   }
   return patch;
 }
@@ -117,7 +140,7 @@ export async function putItem(tableName: string, item: Record<string, any>) {
        ON CONFLICT (${spec.pk}) DO UPDATE
          SET data = EXCLUDED.data, updated_at = NOW()`,
       id,
-      JSON.stringify(doc)
+      JSON.stringify(stripNulBytes(doc))
     );
     return { Attributes: doc };
   } catch (err) {
@@ -166,7 +189,7 @@ export async function updateItem(
          SET data = ${spec.table}.data || EXCLUDED.data, updated_at = NOW()
        RETURNING data`,
       id,
-      JSON.stringify(merged)
+      JSON.stringify(stripNulBytes(merged))
     );
     return rows[0] ? sanitizeDbResult(rows[0].data) : merged;
   } catch (err) {

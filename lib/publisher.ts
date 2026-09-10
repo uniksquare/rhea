@@ -1,5 +1,6 @@
 import type { AssignmentConfig } from "@/lib/assignment-types";
-import { lftpMirror, siteDirOf } from "@/lib/previewer";
+// Relative import with .ts extension: eve's bundler ignores tsconfig paths.
+import { lftpMirror, siteDirOf } from "./previewer.ts";
 
 /**
  * Publish the site to its live location and return the live URL.

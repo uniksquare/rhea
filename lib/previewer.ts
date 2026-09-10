@@ -14,16 +14,67 @@ export function slug(branch: string): string {
     .slice(0, 80) || "preview";
 }
 
+type SafeKind = "host" | "port" | "path" | "user" | "pass" | "plain";
+
+/**
+ * Reject any value that could break out of the newline-delimited lftp script
+ * (or its quoting). The lftp `-c` script is line based: a value containing
+ * "\n!cmd" would run a shell command, so every interpolated value goes
+ * through here first. Throws a message that never echoes the value for
+ * credentials.
+ */
+export function assertSafeValue(name: string, value: unknown, kind: SafeKind = "plain"): void {
+  const secret = kind === "pass" || kind === "user";
+  const show = (v: unknown) => (secret ? "" : ` (${JSON.stringify(String(v))})`);
+  if (kind === "port") {
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 65535) {
+      throw new Error(`invalid ${name}: must be an integer 1-65535${show(value)}`);
+    }
+    return;
+  }
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`invalid ${name}: must be a non-empty string`);
+  }
+  if (/[\r\n\0]/.test(value)) {
+    throw new Error(`invalid ${name}: control characters are not allowed${show(value)}`);
+  }
+  if (kind === "host" && !/^[A-Za-z0-9.-]+$/.test(value)) {
+    throw new Error(`invalid ${name}: must match [A-Za-z0-9.-]${show(value)}`);
+  }
+  if (kind === "path") {
+    if (value.includes('"') || value.includes("\\")) {
+      throw new Error(`invalid ${name}: quotes and backslashes are not allowed${show(value)}`);
+    }
+    if (value.startsWith("-")) {
+      throw new Error(`invalid ${name}: must not start with "-"${show(value)}`);
+    }
+  }
+  // `-u user,pass` splits on the first comma, so the user part must not contain one.
+  if (kind === "user" && value.includes(",")) {
+    throw new Error(`invalid ${name}: commas are not allowed`);
+  }
+}
+
 function lftpQuote(s: string): string {
   // lftp strings: wrap in double quotes, escape backslash and double quote.
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+function maskAll(text: string, secrets: string[]): string {
+  let out = text;
+  for (const s of secrets) {
+    if (!s) continue;
+    out = out.split(s).join("***");
+  }
+  return out;
+}
+
 /**
  * Mirror `localDir` to `remoteDir` over FTP with TLS using lftp.
  * Settings match yogaessence/deploy.sh (known to work on Hostinger).
- * Credentials go into the lftp script passed as one argv item; nothing is
- * echoed and errors are sanitized before they are thrown.
+ * Credentials are passed as an argv item (`-u user,pass`, no shell), never
+ * inside the script; every interpolated value is validated first and errors
+ * are masked before they are thrown.
  */
 export async function lftpMirror({
   target,
@@ -37,6 +88,13 @@ export async function lftpMirror({
   deleteRemote?: boolean;
 }): Promise<void> {
   const port = target.port ?? 21;
+  assertSafeValue("host", target.host, "host");
+  assertSafeValue("port", port, "port");
+  assertSafeValue("user", target.user, "user");
+  assertSafeValue("pass", target.pass, "pass");
+  assertSafeValue("remoteDir", remoteDir, "path");
+  assertSafeValue("localDir", localDir, "path");
+
   const flags = [
     "--reverse",
     "--verbose",
@@ -52,27 +110,40 @@ export async function lftpMirror({
     "set ssl:verify-certificate no",
     "set net:max-retries 2",
     "set net:timeout 20",
-    `open -u ${lftpQuote(target.user)},${lftpQuote(target.pass)} ftp://${target.host}:${port}`,
+    `open ${lftpQuote(`ftp://${target.host}:${port}`)}`,
     `mkdir -p -f ${lftpQuote(remoteDir)}`,
     `mirror ${flags.join(" ")} ${lftpQuote(localDir)} ${lftpQuote(remoteDir)}`,
     "bye",
   ].join("\n");
 
+  // Credentials via argv (no shell, not in the script). lftp splits `-u` on
+  // the first comma, so a comma in the password is fine; the user is
+  // validated above to contain none.
+  const args = ["-u", `${target.user},${target.pass}`, "-c", script];
   try {
-    await execFileAsync("lftp", ["-c", script], { maxBuffer: 20 * 1024 * 1024 });
+    await execFileAsync("lftp", args, { maxBuffer: 20 * 1024 * 1024 });
   } catch (err) {
-    const e = err as { stderr?: string; message?: string };
-    const text = (e.stderr || e.message || "lftp failed")
-      .split(target.pass)
-      .join("***")
-      .trim();
-    throw new Error(`lftp mirror to ${target.host}:${remoteDir} failed: ${text}`);
+    const e = err as { code?: number | string; stderr?: string };
+    const code = typeof e.code === "number" ? e.code : "unknown";
+    const escapedPass = lftpQuote(target.pass).slice(1, -1);
+    const escapedUser = lftpQuote(target.user).slice(1, -1);
+    const stderr = maskAll((e.stderr ?? "").trim(), [
+      target.pass,
+      escapedPass,
+      encodeURIComponent(target.pass),
+      target.user,
+      escapedUser,
+    ]);
+    throw new Error(`lftp mirror failed (exit ${code}): ${stderr}`);
   }
 }
 
 /** Absolute local site dir for a config (workspacePath/siteDir, default "shared"). */
 export function siteDirOf(config: AssignmentConfig): string {
-  return path.join(config.workspacePath, config.siteDir ?? "shared");
+  assertSafeValue("workspacePath", config.workspacePath, "path");
+  const siteDir = config.siteDir ?? "shared";
+  assertSafeValue("siteDir", siteDir, "path");
+  return path.join(config.workspacePath, siteDir);
 }
 
 /**
@@ -95,6 +166,8 @@ export async function deployPreview({
     throw new Error("vercel preview not implemented yet");
   }
   const s = slug(branch);
+  assertSafeValue("branch slug", s, "path");
+  assertSafeValue("remoteDir", target.remoteDir, "path");
   const remoteDir = `${target.remoteDir.replace(/\/+$/, "")}/preview/${s}`;
   await lftpMirror({ target, localDir: siteDirOf(config), remoteDir, deleteRemote: true });
   const baseUrl = target.baseUrl.replace(/\/+$/, "");

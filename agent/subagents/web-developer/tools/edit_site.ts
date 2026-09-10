@@ -2,13 +2,23 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { runHarness } from "../../../../lib/harness.ts";
 import { ensureBranch, commitAll } from "../../../../lib/github.ts";
-import { getAssignment, createTask, updateTask, recordUsage } from "../../../../lib/platform.ts";
-import type { AssignmentConfig } from "../../../../lib/assignment-types.ts";
+import {
+  getAssignment,
+  getTask,
+  createTask,
+  updateTask,
+  recordUsage,
+} from "../../../../lib/platform.ts";
 
 // Deterministic branch name for a task, shared across this subagent's tools.
 function branchForTask(taskId: string): string {
   const short = taskId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
   return `task/${short}`;
+}
+
+function errorText(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.slice(0, 500);
 }
 
 export default defineTool({
@@ -26,16 +36,23 @@ export default defineTool({
       throw new Error("No organization found on the current session.");
     }
 
-    const assignment = await getAssignment(input.assignmentId);
+    const assignment = await getAssignment(input.assignmentId, orgId);
     if (!assignment) {
       throw new Error(`Assignment ${input.assignmentId} not found.`);
     }
-    const config = assignment.config as AssignmentConfig;
+    const config = assignment.config;
     const siteDir = config.siteDir ?? "shared";
 
     let taskId: string;
     if (input.taskId) {
-      taskId = input.taskId;
+      const existing = await getTask(input.taskId, orgId);
+      if (!existing) {
+        throw new Error(`Task ${input.taskId} not found.`);
+      }
+      if (existing.assignmentId !== input.assignmentId) {
+        throw new Error(`Task ${input.taskId} does not belong to assignment ${input.assignmentId}.`);
+      }
+      taskId = existing.taskId;
     } else {
       const task = await createTask({
         orgId,
@@ -44,8 +61,10 @@ export default defineTool({
         sessionId: ctx.session.id,
       });
       taskId = task.taskId;
-      await updateTask(taskId, { status: "planning" });
     }
+
+    // Mark the task as in progress before any git or harness work starts.
+    await updateTask(taskId, orgId, { status: "planning" });
 
     const branch = branchForTask(taskId);
     await ensureBranch({
@@ -61,24 +80,32 @@ export default defineTool({
       input.request,
     ].join("\n\n");
 
-    const harness = await runHarness({
-      workspacePath: config.workspacePath,
-      prompt,
-      allowedTools: config.allowedTools,
-      model: config.model,
-    });
-
-    if (!harness.ok) {
-      await updateTask(taskId, { status: "planning", error: harness.output });
-      throw new Error(`Site edit failed: ${harness.output}`);
+    let harness;
+    try {
+      harness = await runHarness({
+        workspacePath: config.workspacePath,
+        prompt,
+        allowedTools: config.allowedTools,
+        model: config.model,
+      });
+    } catch (err) {
+      await updateTask(taskId, orgId, { status: "failed", error: errorText(err) });
+      throw err;
     }
 
+    if (!harness.ok) {
+      await updateTask(taskId, orgId, { status: "planning", error: errorText(harness.output) });
+      throw new Error(`Site edit failed: ${errorText(harness.output)}`);
+    }
+
+    // Only stage the site directory so nothing outside siteDir can be committed.
     const commit = await commitAll({
       workspacePath: config.workspacePath,
       message: `rhea: ${input.request.slice(0, 72)}`,
+      paths: [siteDir],
     });
 
-    await updateTask(taskId, { branch, status: "planning" });
+    await updateTask(taskId, orgId, { branch, status: "planning" });
 
     await recordUsage({
       orgId,
