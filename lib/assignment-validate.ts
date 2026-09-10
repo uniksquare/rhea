@@ -220,6 +220,14 @@ function validatePublishTarget(value: unknown): PublishTarget {
     if (value.prodBranch !== undefined && value.prodBranch !== null && value.prodBranch !== "") {
       out.prodBranch = validateBranch("publishTarget.prodBranch", value.prodBranch);
     }
+    // token is a secret: stripped into secrets.vercelToken by splitSecrets
+    // before the config is persisted. Never echo the value in a fail() message.
+    if (value.token !== undefined && value.token !== null && value.token !== "") {
+      if (typeof value.token !== "string") fail("publishTarget.token: must be a string");
+      if (CONTROL.test(value.token)) fail("publishTarget.token: control characters are not allowed");
+      if (value.token.length > 500) fail("publishTarget.token: too long");
+      out.token = value.token;
+    }
     return out;
   }
   fail("publishTarget.type must be hostinger-ftp or vercel");
