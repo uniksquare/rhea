@@ -95,42 +95,40 @@ Rhea uses AWS Aurora DSQL (PostgreSQL-compatible) for distributed multi-tenant m
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
-*   Node.js 24+
-*   AWS Credentials with access to Aurora DSQL and DynamoDB.
-*   Gemini API Key or Google Vertex Credentials.
+*   Node.js 24 (use [`fnm`](https://github.com/Schniz/fnm) to install and pin the version from `.node-version`).
+*   A Neon Postgres `DATABASE_URL` (create a free project at [neon.tech](https://neon.tech)).
+*   Optional: an `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` if you want to actually run the agent (not required just to boot the app).
 
 ### 2. Environment Variables
 Create a `.env.local` file at the root of the project with the following configuration:
 ```env
-# Database Configuration
-DATABASE_URL=postgresql://admin@<endpoint>:5432/postgres
-
-# AWS Credentials (DSQL signer and DynamoDB)
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION=ap-south-1
-
-# Gemini/Google Vertex LLM API Key
-GEMINI_API_KEY=your-gemini-api-key
+# Database Configuration (Neon Postgres)
+DATABASE_URL=postgresql://user:password@<endpoint>.neon.tech/dbname?sslmode=require
 
 # Auth configuration & security keys
 AUTH_SECRET=generate-a-secure-random-string
 ENCRYPTION_KEY=32-character-encryption-key-for-AES
 
-# OAuth Provider details
+# OAuth Provider details (optional; each provider is only enabled when its
+# ID + secret are both set, so you can leave these unset in local dev)
 AUTH_GITHUB_ID=your-github-oauth-client-id
 AUTH_GITHUB_SECRET=your-github-oauth-client-secret
 AUTH_GOOGLE_ID=your-google-oauth-client-id
 AUTH_GOOGLE_SECRET=your-google-oauth-client-secret
+
+# Dev-only login bypass (never enable in production)
+# Lets you sign in as a local dev user with no OAuth app configured.
+AUTH_DEV_BYPASS=true
+NEXT_PUBLIC_AUTH_DEV_BYPASS=true
 ```
 
-### 3. Setup Dependencies & Initialize DSQL
+### 3. Setup Dependencies & Initialize the Database
 ```bash
 # Install NPM packages
 npm install
 
-# Build database schemas & tables in Aurora DSQL
-npx tsx lib/init-db.ts
+# Push the Prisma schema to your Neon database
+npm run db:push
 ```
 
 ### 4. Running the Development Environments
@@ -144,9 +142,11 @@ Start the Eve interactive agent server (runs the model loops, streams state, and
 npx eve dev
 ```
 
+With `AUTH_DEV_BYPASS=true` set, open the sign-in page and use the "Continue as dev user" option to skip GitHub/Google OAuth entirely.
+
 ---
 
 ## 🤝 Contributing & Code Review
 
-Please review our [Contributing Guidelines](file:///c:/projects/rhea/CONTRIBUTING.md) and [Code Owners](file:///c:/projects/rhea/.github/CODEOWNERS) configuration prior to submitting Pull Requests.
+Please review our [Contributing Guidelines](./CONTRIBUTING.md) and [Code Owners](./.github/CODEOWNERS) configuration prior to submitting Pull Requests.
 All mutations and network egress changes require strict security verification before merging into the main branches.

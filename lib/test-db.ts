@@ -1,16 +1,16 @@
-import { queryDsql } from './dsql.js';
+import { queryDsql, prisma } from './dsql.js';
 import { putItem, getItem } from './dynamodb.js';
 
 async function test() {
-  console.log("=== Testing Amazon Aurora DSQL ===");
+  console.log("=== Testing Neon Postgres (Prisma) ===");
   try {
     const res = await queryDsql("SELECT * FROM organizations LIMIT 1;");
-    console.log("DSQL Success! Found organization:", res.rows[0]);
+    console.log("Postgres Success! Found organization:", res.rows[0]);
   } catch (err) {
-    console.error("DSQL Connection failed:", err);
+    console.error("Postgres Connection failed:", err);
   }
 
-  console.log("\n=== Testing AWS DynamoDB ===");
+  console.log("\n=== Testing hook tables (hook_sessions) ===");
   try {
     const testSessionId = `test-session-${Date.now()}`;
     await putItem("Sessions", {
@@ -18,13 +18,17 @@ async function test() {
       created_at: new Date().toISOString(),
       status: "ACTIVE"
     });
-    console.log("DynamoDB putItem Success!");
+    console.log("putItem Success!");
 
     const item = await getItem("Sessions", { session_id: testSessionId });
-    console.log("DynamoDB getItem Success! Retrieved:", item);
+    console.log("getItem Success! Retrieved:", item);
+
+    await queryDsql("DELETE FROM hook_sessions WHERE session_id = $1;", [testSessionId]);
   } catch (err) {
-    console.error("DynamoDB Connection failed:", err);
+    console.error("Hook table access failed:", err);
   }
 }
 
-test().catch(console.error);
+test()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

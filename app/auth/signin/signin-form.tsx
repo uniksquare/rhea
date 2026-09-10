@@ -16,13 +16,30 @@ function StarburstIcon({ className = "" }: { className?: string }) {
 
 const LOGO_DEV_PUBLIC_KEY = process.env.NEXT_PUBLIC_LOGO_DEV_KEY || 'pk_DVzJORPoQumYH3A-U6iG2g';
 
+// Dev-only login bypass button, shown only when the server has the
+// "dev-login" Credentials provider registered (AUTH_DEV_BYPASS=true).
+const DEV_BYPASS_ENABLED = process.env.NEXT_PUBLIC_AUTH_DEV_BYPASS === "true";
+
 export function SignInForm() {
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [devEmail, setDevEmail] = useState("dev@local.test");
 
   const handleSignIn = async (provider: string) => {
     setIsLoading(provider);
     try {
       await signIn(provider, { callbackUrl: "/" });
+    } catch {
+      setIsLoading(null);
+    }
+  };
+
+  const handleDevSignIn = async () => {
+    setIsLoading("dev-login");
+    try {
+      await signIn("dev-login", {
+        email: devEmail || "dev@local.test",
+        callbackUrl: "/",
+      });
     } catch {
       setIsLoading(null);
     }
@@ -145,6 +162,32 @@ export function SignInForm() {
               <span>Continue with Google</span>
             </button>
           </div>
+
+          {DEV_BYPASS_ENABLED && (
+            <div className="space-y-8 w-full pt-16 border-t border-mist">
+              <p className="font-mono text-[9px] uppercase tracking-wider text-fog">
+                Dev only
+              </p>
+              <input
+                type="email"
+                value={devEmail}
+                onChange={(e) => setDevEmail(e.target.value)}
+                placeholder="dev@local.test"
+                className="w-full px-16 py-[10px] border border-mist rounded text-[13px] text-graphite-ink bg-paper-white focus:outline-none focus:border-iris-violet"
+              />
+              <button
+                onClick={handleDevSignIn}
+                disabled={isLoading !== null}
+                className="flex items-center justify-center gap-[12px] w-full px-16 py-[12px] border border-mist rounded font-mono text-[11px] uppercase tracking-wider text-graphite-ink hover:bg-soft-snow/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-paper-white"
+              >
+                {isLoading === "dev-login" ? (
+                  <div className="size-16 border-2 border-mist border-t-iris-violet rounded-full animate-spin" />
+                ) : (
+                  <span>Continue as dev user</span>
+                )}
+              </button>
+            </div>
+          )}
 
         </div>
 

@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { queryDsql } from "./dsql";
 import { seedOrg } from "./seed-org";
 
@@ -36,17 +38,59 @@ declare module "@auth/core/jwt" {
  * Providers are defined inline (not imported from auth.config.ts)
  * because Eve's Rolldown bundler can't resolve the split-config
  * import chain. The middleware uses auth.config.ts separately.
+ *
+ * Each OAuth provider is only registered when its env vars are present,
+ * so a missing GitHub/Google OAuth app never crashes boot.
  */
-const providers = [
-  GitHub({
-    clientId: process.env.AUTH_GITHUB_ID,
-    clientSecret: process.env.AUTH_GITHUB_SECRET,
-  }),
-  Google({
-    clientId: process.env.AUTH_GOOGLE_ID,
-    clientSecret: process.env.AUTH_GOOGLE_SECRET,
-  }),
-];
+const providers: NonNullable<NextAuthConfig["providers"]> = [];
+
+if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
+  providers.push(
+    GitHub({
+      clientId: process.env.AUTH_GITHUB_ID,
+      clientSecret: process.env.AUTH_GITHUB_SECRET,
+    })
+  );
+}
+
+if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+  providers.push(
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+    })
+  );
+}
+
+/**
+ * Dev-only login bypass: lets the app run locally with no GitHub/Google
+ * OAuth apps configured. Only registered when explicitly opted into via
+ * AUTH_DEV_BYPASS=true, and never in production.
+ */
+const isDevBypassEnabled =
+  process.env.AUTH_DEV_BYPASS === "true" && process.env.NODE_ENV !== "production";
+
+if (isDevBypassEnabled) {
+  providers.push(
+    Credentials({
+      id: "dev-login",
+      name: "Dev Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+      },
+      async authorize(credentials) {
+        const email = ((credentials?.email as string) || "dev@local.test").trim();
+        if (!email) return null;
+
+        return {
+          id: email,
+          email,
+          name: email.split("@")[0],
+        };
+      },
+    })
+  );
+}
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
   providers,
