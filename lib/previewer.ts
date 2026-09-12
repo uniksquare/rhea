@@ -83,11 +83,15 @@ export async function lftpMirror({
   localDir,
   remoteDir,
   deleteRemote = false,
+  excludeHtaccess = false,
 }: {
   target: Extract<PublishTarget, { type: "hostinger-ftp" }>;
   localDir: string;
   remoteDir: string;
   deleteRemote?: boolean;
+  // Preview copies must not carry the site's own .htaccess: its RewriteBase
+  // points at the live folder and would rewrite preview URLs to live pages.
+  excludeHtaccess?: boolean;
 }): Promise<void> {
   const port = target.port ?? 21;
   assertSafeValue("host", target.host, "host");
@@ -106,24 +110,28 @@ export async function lftpMirror({
     "*.swp",
   ];
   if (deleteRemote) flags.push("--delete");
+  if (excludeHtaccess) flags.push("--exclude-glob", ".htaccess");
   const script = [
     "set ftp:ssl-allow true",
     "set ftp:ssl-protect-data true",
     "set ssl:verify-certificate no",
     "set net:max-retries 2",
     "set net:timeout 20",
-    `open ${lftpQuote(`ftp://${target.host}:${port}`)}`,
     `mkdir -p -f ${lftpQuote(remoteDir)}`,
     `mirror ${flags.join(" ")} ${lftpQuote(localDir)} ${lftpQuote(remoteDir)}`,
+    ...(excludeHtaccess ? [`rm -f ${lftpQuote(`${remoteDir}/.htaccess`)}`] : []),
     "bye",
   ].join("\n");
 
-  // Credentials via argv (no shell, not in the script). lftp splits `-u` on
-  // the first comma, so a comma in the password is fine; the user is
-  // validated above to contain none.
-  const args = ["-u", `${target.user},${target.pass}`, "-c", script];
+  // Credentials and site on argv (no shell), commands on stdin: the same shape
+  // as the proven deploy.sh flow. On this lftp build `-c`/`-e` conflict with
+  // `-u`/site arguments. `-u` splits on the first comma; user is validated to
+  // contain none, so a comma in the password is fine.
+  const args = ["-u", `${target.user},${target.pass}`, `ftp://${target.host}:${port}`];
   try {
-    await execFileAsync("lftp", args, { maxBuffer: 20 * 1024 * 1024 });
+    const run = execFileAsync("lftp", args, { maxBuffer: 20 * 1024 * 1024 });
+    run.child.stdin?.end(script + "\n");
+    await run;
   } catch (err) {
     const e = err as { code?: number | string; stderr?: string };
     const code = typeof e.code === "number" ? e.code : "unknown";
@@ -175,7 +183,7 @@ export async function deployPreview({
   assertSafeValue("branch slug", s, "path");
   assertSafeValue("remoteDir", target.remoteDir, "path");
   const remoteDir = `${target.remoteDir.replace(/\/+$/, "")}/preview/${s}`;
-  await lftpMirror({ target, localDir: siteDirOf(config), remoteDir, deleteRemote: true });
+  await lftpMirror({ target, localDir: siteDirOf(config), remoteDir, deleteRemote: true, excludeHtaccess: true });
   const baseUrl = target.baseUrl.replace(/\/+$/, "");
   return { url: `${baseUrl}/preview/${s}/` };
 }

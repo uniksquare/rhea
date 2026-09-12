@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { getAssignment, getTask, listTaskMessages } from "@/lib/platform";
 import { hasMinRole, type Role } from "@/lib/rbac";
-import { formatDate } from "@/app/_components/assignments-list";
+import { formatDate } from "@/lib/assignment-ui";
 import { TaskChat, type TaskChatMessage } from "@/app/_components/task-chat";
 import { planFromJson } from "@/lib/task-chat";
 

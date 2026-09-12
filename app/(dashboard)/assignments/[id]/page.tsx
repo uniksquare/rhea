@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { getAssignment, listTasks } from "@/lib/platform";
 import { hasMinRole, type Role } from "@/lib/rbac";
-import { roleLabel, formatDate } from "@/app/_components/assignments-list";
+import { roleLabel, formatDate } from "@/lib/assignment-ui";
 import { AssignmentTasks } from "@/app/_components/assignments-tasks";
 import { AssignmentSecrets } from "@/app/_components/assignment-secrets";
 
