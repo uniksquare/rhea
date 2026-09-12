@@ -2,10 +2,12 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ExternalLink } from "lucide-react";
-import { getAssignment, getTask, listTaskMessages } from "@/lib/platform";
+import { getAssignment, getTask, getTaskUsage, listTaskMessages } from "@/lib/platform";
 import { hasMinRole, type Role } from "@/lib/rbac";
 import { formatDate } from "@/lib/assignment-ui";
 import { TaskChat, type TaskChatMessage } from "@/app/_components/task-chat";
+import { TaskUsage } from "@/app/_components/task-usage";
+import type { TaskUsageRow } from "@/lib/task-usage";
 import { planFromJson } from "@/lib/task-chat";
 
 function isHttpUrl(value: string | null | undefined): value is string {
@@ -68,6 +70,20 @@ export default async function TaskPage({ params }: TaskPageProps) {
     content: m.content,
     mode: m.mode,
     createdAt: m.createdAt ? m.createdAt.toISOString() : null,
+  }));
+
+  const usageRows = await getTaskUsage(taskId, orgId);
+  const usage: TaskUsageRow[] = usageRows.map((u) => ({
+    createdAt: u.createdAt,
+    tool: u.tool,
+    provider: u.provider,
+    model: u.model,
+    billing: u.billing === "subscription" ? "subscription" : "api",
+    inputTokens: u.inputTokens,
+    outputTokens: u.outputTokens,
+    cacheReadTokens: u.cacheReadTokens,
+    cacheWriteTokens: u.cacheWriteTokens,
+    costUsd: Number(u.costUsd),
   }));
 
   const plan = planFromJson(task.plan);
@@ -188,6 +204,11 @@ export default async function TaskPage({ params }: TaskPageProps) {
           canPublish={canPublish}
           canDiscard={canDiscard}
         />
+      </section>
+
+      <section className="space-y-[8px]">
+        <h2 className={labelCls}>Usage</h2>
+        <TaskUsage rows={usage} />
       </section>
     </div>
   );
