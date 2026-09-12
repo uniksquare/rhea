@@ -33,6 +33,20 @@ const roles = [
       signoff: { publish: true },
     },
   },
+  {
+    roleKey: "code-reviewer",
+    name: "Code Reviewer",
+    description:
+      "Fetches open pull requests on an assigned repo, reviews diffs against a rules list, and posts review comments after sign-off. Can run on a schedule.",
+    manifest: {
+      brain: { harness: "claude", model: "claude" },
+      workspace: { type: "git-repo" },
+      playbooks: ["review-rules"],
+      tools: ["list_open_prs", "review_pr", "post_review"],
+      signoff: { post_review: true },
+      scheduled: true,
+    },
+  },
 ];
 
 async function run() {
