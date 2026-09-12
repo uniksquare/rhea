@@ -12,13 +12,17 @@ import {
   Shield,
   LogOut,
   Plug,
+  Briefcase,
+  BarChart3,
   History as HistoryIcon,
+  ListChecks,
   ChevronLeft,
   Trash2,
   Edit2,
   Check,
   X,
-  Loader2
+  Loader2,
+  ClipboardCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +61,11 @@ export function DashboardSidebar({ userRole }: DashboardSidebarProps) {
     },
     { name: "Overview", href: "/overview", icon: LayoutGrid },
     { name: "Incidents", href: "/incidents", icon: AlertCircle },
+    { name: "Assignments", href: "/assignments", icon: Briefcase },
+    { name: "Tasks", href: "/tasks", icon: ListChecks },
+    { name: "Approvals", href: "/approvals", icon: ClipboardCheck },
+    { name: "Roles", href: "/roles", icon: Briefcase },
+    { name: "Usage", href: "/usage", icon: BarChart3 },
     { name: "Integrations", href: "/connectors", icon: Plug },
     { name: "Computer", href: "/sandbox", icon: Shield },
     { name: "Team & Keys", href: "/team", icon: Users },
