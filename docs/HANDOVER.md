@@ -112,3 +112,5 @@ Append `--deploy` to the command above, or click "Build preview" on the task pag
 - Three bugs found and fixed during this e2e (all committed): (1) lftp `-c` cannot be combined with `-u`/site on argv; commands now go over stdin like deploy.sh. (2) Preview mirrors copied the site's own .htaccess (RewriteBase /shared/) into the preview folder, which rewrote preview URLs to the live page; preview mirrors now exclude .htaccess and remove any copied one. (3) `roleLabel`/`formatDate` lived in a "use client" file and were called from server pages (runtime error you saw on /assignments/<id>); moved to lib/assignment-ui.ts.
 
 - Per-task usage panel merged (task page shows turns, tokens, billed vs subscription, per-turn table). Code Reviewer role (design doc + seed manifest + read-only list_open_prs skeleton) in progress in wt-2.
+
+- Code Reviewer role merged: docs/roles/code-reviewer.md, seed manifest, read-only skeleton subagent (list_open_prs via gh). Scheduling is design-only (no scheduler yet). State: rhea-v2 pushed, PR #1 open (not merged), both worktrees detached and clean.
