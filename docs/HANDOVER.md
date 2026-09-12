@@ -105,3 +105,5 @@ Append `--deploy` to the command above, or click "Build preview" on the task pag
 
 - F7: yogaessence is a local git repo with NO GitHub remote, so the "open PR" step (open_pr tool / pushBranch) cannot run for it yet. When you want the GitHub half of the flow: create the repo (e.g. `gh repo create uniksquare/yogaessence --private --source ~/Desktop/gitrepos/yogaessence --push`) and set `repoUrl` on the assignment; everything else (branch per task, preview, publish) already works without a remote.
 - Closing state (a268d04 + this): 54 commits ahead of main. Idle until morning; no further feature work started on purpose (remaining ideas are scheduled Roles like Code Reviewer/Monitor, which are a separate design).
+
+- 2026-09-12: F7 resolved: yogaessence pushed to https://github.com/uniksquare/yogaessence (main + task branches) and the assignment repoUrl updated. rhea-v2 pushed and PR opened to main (not merged; local testing first, Neon before merge). No LLM key needed (Claude headless on Max).
