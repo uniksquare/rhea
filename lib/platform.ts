@@ -468,3 +468,23 @@ export async function recordUsage(params: {
     },
   });
 }
+
+/** A single Task's usage ledger rows, oldest first, scoped to orgId. */
+export async function getTaskUsage(taskId: string, orgId: string) {
+  return prisma.usageLedger.findMany({
+    where: { taskId, orgId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      createdAt: true,
+      tool: true,
+      provider: true,
+      model: true,
+      billing: true,
+      inputTokens: true,
+      outputTokens: true,
+      cacheReadTokens: true,
+      cacheWriteTokens: true,
+      costUsd: true,
+    },
+  });
+}
